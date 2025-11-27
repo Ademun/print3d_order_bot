@@ -7,13 +7,13 @@ create table orders
     client_name  text    not null,
     created_at   text    not null,
     closed_at    text,
-    folder_path  text    not null
+    folder_path  text
 );
 
 create table order_files
 (
     file_name  text not null,
-    tg_file_id text not null,
+    tg_file_id text,
     order_id integer not null,
     foreign key (order_id) references orders(order_id) on delete cascade
 );

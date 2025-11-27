@@ -12,6 +12,7 @@ import (
 type Repo interface {
 	NewOrderOpenTx(ctx context.Context, order DBOrder, files []TGOrderFile) (*sqlx.Tx, error)
 	NewOrderCloseTX(tx *sqlx.Tx) error
+	NewOrderRollbackTX(tx *sqlx.Tx) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	DeleteOrder(ctx context.Context, orderID int) error
 }
@@ -34,9 +35,14 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 			}
 	}
 
-	query := `insert into orders (order_status, client_name, created_at, folder_path) values  (:order_status, :client_name, :created_at, :folder_path)`
-	result, err := tx.NamedExecContext(ctx, query, &order)
+	orderID, err := d.insertOrders(ctx, order, err, tx)
 	if err != nil {
+		return nil, err
+	}
+
+	query := `update orders set folder_path = ? where order_id = ?`
+	path := createFolderPath(order.ClientName, order.CreatedAt, int(orderID))
+	if _, err := tx.ExecContext(ctx, query, &path); err != nil {
 		if err := tx.Rollback(); err != nil {
 			return nil,
 				&pkg.ErrDBProcedure{
@@ -48,22 +54,6 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 			&pkg.ErrDBProcedure{
 				Cause: "failed to execute query",
 				Info:  fmt.Sprintf("query: %s", query),
-				Err:   err,
-			}
-	}
-
-	orderID, err := result.LastInsertId()
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			return nil,
-				&pkg.ErrDBProcedure{
-					Cause: "failed to rollback transaction",
-					Err:   err,
-				}
-		}
-		return nil,
-			&pkg.ErrDBProcedure{
-				Cause: "failed to retrieve last insert ID",
 				Err:   err,
 			}
 	}
@@ -106,6 +96,16 @@ func (d *DefaultRepo) NewOrderCloseTX(tx *sqlx.Tx) error {
 	return nil
 }
 
+func (d *DefaultRepo) NewOrderRollbackTX(tx *sqlx.Tx) error {
+	if err := tx.Rollback(); err != nil {
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to rollback transaction",
+			Err:   err,
+		}
+	}
+	return nil
+}
+
 func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error) {
 	var queryBuilder strings.Builder
 	queryBuilder.WriteString(`select * from orders`)
@@ -137,4 +137,42 @@ func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
 		}
 	}
 	return nil
+}
+
+func (d *DefaultRepo) insertOrders(ctx context.Context, order DBOrder, err error, tx *sqlx.Tx) (int, error) {
+	query := `insert into orders (order_status, client_name, created_at, folder_path) values  (:order_status, :client_name, :created_at, :folder_path)`
+	result, err := tx.NamedExecContext(ctx, query, &order)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return -1,
+				&pkg.ErrDBProcedure{
+					Cause: "failed to rollback transaction",
+					Err:   err,
+				}
+		}
+		return -1,
+			&pkg.ErrDBProcedure{
+				Cause: "failed to execute query",
+				Info:  fmt.Sprintf("query: %s", query),
+				Err:   err,
+			}
+	}
+
+	orderID, err := result.LastInsertId()
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			return -1,
+				&pkg.ErrDBProcedure{
+					Cause: "failed to rollback transaction",
+					Err:   err,
+				}
+		}
+		return -1,
+			&pkg.ErrDBProcedure{
+				Cause: "failed to retrieve last insert ID",
+				Err:   err,
+			}
+	}
+
+	return int(orderID), nil
 }

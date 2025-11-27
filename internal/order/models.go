@@ -17,12 +17,17 @@ type DBOrder struct {
 }
 
 type DBOrderFile struct {
-	FileName string `db:"file_name"`
-	TgFileID string `db:"tg_file_id"`
-	OrderID  int    `db:"order_id"`
+	FileName string  `db:"file_name"`
+	TgFileID *string `db:"tg_file_id"`
+	OrderID  int     `db:"order_id"`
+}
+
+type TGOrder struct {
+	ClientName string
+	Comments   string
 }
 
 type TGOrderFile struct {
 	FileName string
-	FileID   string
+	FileID   *string
 }
