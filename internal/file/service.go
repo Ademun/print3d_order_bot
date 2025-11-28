@@ -2,14 +2,13 @@ package file
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"print3d-order-bot/internal/pkg/model"
+	"strings"
 	"sync"
-
-	"github.com/go-telegram/bot"
 )
 
 type Service interface {
@@ -17,69 +16,97 @@ type Service interface {
 }
 
 type DefaultService struct {
-	client *http.Client
+	downloader Downloader
 }
 
-func NewDefaultService(client *http.Client) Service {
-	return &DefaultService{client: client}
+func NewDefaultService(downloader Downloader) Service {
+	return &DefaultService{downloader: downloader}
 }
 
 func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.OrderFile) error {
 	wg := sync.WaitGroup{}
-	errChan := make(chan error, len(files))
+	errChan := make(chan FailedFile, len(files))
 	// TODO: research optimal value and make it configurable
 	sem := make(chan struct{}, 5)
+
 	for _, file := range files {
 		sem <- struct{}{}
 		wg.Add(1)
-		go d.processFile(ctx, folderPath, file, &wg)
+		go d.processFile(ctx, folderPath, file, &wg, errChan)
 	}
 	wg.Wait()
 
+	var failedFiles []FailedFile
+	for ff := range errChan {
+		failedFiles = append(failedFiles, ff)
+	}
+
+	if len(failedFiles) > 0 {
+		return &ErrProcessingFiles{
+			TotalFiles:  len(files),
+			FailedFiles: failedFiles,
+		}
+	}
+
 	return nil
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.OrderFile, wg *sync.WaitGroup) error {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.OrderFile, wg *sync.WaitGroup, errChan chan FailedFile) {
 	defer wg.Done()
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		errChan <- FailedFile{
+			Filename: file.FileName,
+			Err:      ctx.Err(),
+		}
 	default:
+		filePath := filepath.Join(folderPath, file.FileName)
+
 		if file.TGFileID == nil {
-			// TODO: save
-			return nil
-		}
-		fileUrl := getFileUrl(*file.TGFileID)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileUrl, nil)
-		if err != nil {
-			// TODO: implement error
-			panic(err)
-		}
-		resp, err := d.client.Do(req)
-		if err != nil {
-			// TODO: implement error
-			panic(err)
-		}
-		defer resp.Body.Close()
+			if file.FileBody == nil {
+				errChan <- FailedFile{
+					Filename: file.FileName,
+					Err:      fmt.Errorf("unexpected empty file body for file with no telegram ID"),
+				}
+			}
 
-		filePath := filepath.Join(folderPath, *file.TGFileID)
-		out, err := os.Create(filePath)
-		if err != nil {
-			// TODO: implement error
-			panic(err)
+			fs := io.NopCloser(strings.NewReader(*file.FileBody))
+			err := d.saveFile(filePath, fs)
+			if err != nil {
+				errChan <- FailedFile{
+					Filename: file.FileName,
+					Err:      err,
+				}
+			}
 		}
-		defer out.Close()
 
-		_, err = io.Copy(out, resp.Body)
+		fs, err := d.downloader.DownloadFile(ctx, *file.TGFileID)
 		if err != nil {
-			// TODO: implement error
-			panic(err)
+			errChan <- FailedFile{
+				Filename: file.FileName,
+				Err:      err,
+			}
+		}
+
+		err = d.saveFile(filePath, fs)
+		if err != nil {
+			errChan <- FailedFile{
+				Filename: file.FileName,
+				Err:      err,
+			}
 		}
 	}
-	return nil
 }
 
-func getFileUrl(tgFileID string) string {
-	// TODO: implement
-	return ""
+func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
+	defer fs.Close()
+	out, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, fs)
+
+	return err
 }
