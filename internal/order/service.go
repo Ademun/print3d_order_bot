@@ -10,7 +10,8 @@ import (
 )
 
 type Service interface {
-	NewOrder(ctx context.Context, order model.Order, files []model.OrderFile) error
+	NewOrder(ctx context.Context, order model.TGOrder, files []model.OrderFile) error
+	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
 }
 
 type DefaultService struct {
@@ -25,7 +26,7 @@ func NewDefaultService(repo Repo, fileService file.Service) Service {
 	}
 }
 
-func (d *DefaultService) NewOrder(ctx context.Context, order model.Order, files []model.OrderFile) error {
+func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.OrderFile) error {
 	createdAt := time.Now().Format("2006-01-02")
 	dbOrder := DBOrder{
 		ClientName: order.ClientName,
@@ -61,4 +62,13 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.Order, files 
 		return err
 	}
 	return nil
+}
+
+func (d *DefaultService) GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error) {
+	files, err := d.repo.GetOrderFiles(ctx, orderID)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	return files, nil
 }

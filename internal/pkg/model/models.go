@@ -1,8 +1,11 @@
 package model
 
-type Order struct {
+type TGOrder struct {
 	ClientName string
 	Comments   string
+}
+
+type Order struct {
 }
 
 type OrderFile struct {

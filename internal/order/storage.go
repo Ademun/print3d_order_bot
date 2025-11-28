@@ -15,6 +15,7 @@ type Repo interface {
 	NewOrderCloseTX(tx *sqlx.Tx) error
 	NewOrderRollbackTX(tx *sqlx.Tx) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
+	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
 	DeleteOrder(ctx context.Context, orderID int) error
 }
 
@@ -126,6 +127,19 @@ func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder,
 			}
 	}
 	return orders, nil
+}
+
+func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error) {
+	query := `select * from order_files where order_id = ?`
+	var orderFiles []model.OrderFile
+	if err := d.db.SelectContext(ctx, &orderFiles, query, orderID); err != nil {
+		return nil, &pkg.ErrDBProcedure{
+			Cause: "failed to select order files",
+			Info:  fmt.Sprintf("query: %s", query),
+			Err:   err,
+		}
+	}
+	return orderFiles, nil
 }
 
 func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
