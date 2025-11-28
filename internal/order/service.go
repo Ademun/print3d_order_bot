@@ -14,6 +14,7 @@ type Service interface {
 	AddFilesToOrder(ctx context.Context, orderID int, files []model.OrderFile) error
 	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
 	GetActiveOrders(ctx context.Context) ([]DBOrder, error)
+	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
 	RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
 
@@ -86,6 +87,15 @@ func (d *DefaultService) GetOrderFiles(ctx context.Context, orderID int) ([]mode
 
 func (d *DefaultService) GetActiveOrders(ctx context.Context) ([]DBOrder, error) {
 	orders, err := d.repo.GetOrders(ctx, true)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	return orders, nil
+}
+
+func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error) {
+	orders, err := d.repo.GetOrderByID(ctx, orderID)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
