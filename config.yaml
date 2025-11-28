@@ -1,0 +1,5 @@
+file_service:
+  dir_path: "orders"
+  append_mode_filenames:
+    - "links.txt"
+    - "comments.txt"
