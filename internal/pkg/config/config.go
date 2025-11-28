@@ -5,6 +5,6 @@ type Config struct {
 }
 
 type FileServiceCfg struct {
-	dirPath             string   `yaml:"dir_path"`
-	appendModeFilenames []string `yaml:"append_mode_filenames"`
+	DirPath             string   `yaml:"dir_path"`
+	AppendModeFilenames []string `yaml:"append_mode_filenames"`
 }

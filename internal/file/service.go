@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/pkg/model"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -18,10 +20,14 @@ type Service interface {
 
 type DefaultService struct {
 	downloader Downloader
+	cfg        *config.FileServiceCfg
 }
 
-func NewDefaultService(downloader Downloader) Service {
-	return &DefaultService{downloader: downloader}
+func NewDefaultService(downloader Downloader, cfg *config.FileServiceCfg) Service {
+	return &DefaultService{
+		downloader: downloader,
+		cfg:        cfg,
+	}
 }
 
 func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.OrderFile) error {
@@ -103,9 +109,9 @@ func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
 	defer closeFileStream()(fs)
 
 	fileName := filepath.Base(filePath)
-	isSpecialFile := fileName == "links.txt" || fileName == "comments.txt"
+	isAppendFile := slices.Contains(d.cfg.AppendModeFilenames, fileName)
 
-	if isSpecialFile {
+	if isAppendFile {
 		out, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return err
