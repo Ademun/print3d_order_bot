@@ -3,12 +3,15 @@ package order
 import (
 	"context"
 	"log/slog"
+	"print3d-order-bot/internal/pkg/model"
 	"strings"
 	"time"
+
+	"github.com/go-telegram/bot"
 )
 
 type Service interface {
-	NewOrder(ctx context.Context, order TGOrder, files []TGOrderFile) error
+	NewOrder(ctx context.Context, order model.Order, files []model.OrderFile) error
 }
 
 type DefaultService struct {
@@ -19,7 +22,7 @@ func NewDefaultService(repo Repo) Service {
 	return &DefaultService{repo: repo}
 }
 
-func (d *DefaultService) NewOrder(ctx context.Context, order TGOrder, files []TGOrderFile) error {
+func (d *DefaultService) NewOrder(ctx context.Context, order model.Order, files []model.OrderFile) error {
 	createdAt := time.Now().Format("2006-01-02")
 	dbOrder := DBOrder{
 		ClientName: order.ClientName,
@@ -28,9 +31,10 @@ func (d *DefaultService) NewOrder(ctx context.Context, order TGOrder, files []TG
 	}
 
 	if strings.TrimSpace(order.Comments) != "" {
-		files = append(files, TGOrderFile{
+		files = append(files, model.OrderFile{
 			FileName: "comments.txt",
-			FileID:   nil,
+			FileBody: &order.Comments,
+			TGFileID: nil,
 		})
 	}
 
@@ -39,6 +43,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order TGOrder, files []TG
 		slog.Error(err.Error())
 		return err
 	}
+	bot.Bot{}.File
 
 	// TODO: File Processing
 

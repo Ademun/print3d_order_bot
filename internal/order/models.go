@@ -21,13 +21,3 @@ type DBOrderFile struct {
 	TgFileID *string `db:"tg_file_id"`
 	OrderID  int     `db:"order_id"`
 }
-
-type TGOrder struct {
-	ClientName string
-	Comments   string
-}
-
-type TGOrderFile struct {
-	FileName string
-	FileID   *string
-}

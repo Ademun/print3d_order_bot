@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"print3d-order-bot/internal/pkg"
+	"print3d-order-bot/internal/pkg/model"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
 
 type Repo interface {
-	NewOrderOpenTx(ctx context.Context, order DBOrder, files []TGOrderFile) (*sqlx.Tx, error)
+	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (*sqlx.Tx, error)
 	NewOrderCloseTX(tx *sqlx.Tx) error
 	NewOrderRollbackTX(tx *sqlx.Tx) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
@@ -25,7 +26,7 @@ func NewDefaultRepo(db *sqlx.DB) Repo {
 	return &DefaultRepo{db: db}
 }
 
-func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []TGOrderFile) (*sqlx.Tx, error) {
+func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (*sqlx.Tx, error) {
 	tx, err := d.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil,
@@ -62,7 +63,7 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 	for i, file := range files {
 		dbFiles[i] = DBOrderFile{
 			FileName: file.FileName,
-			TgFileID: file.FileID,
+			TgFileID: file.TGFileID,
 			OrderID:  int(orderID),
 		}
 	}
