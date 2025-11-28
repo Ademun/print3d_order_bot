@@ -15,6 +15,7 @@ import (
 
 type Service interface {
 	DownloadAndSave(ctx context.Context, folderPath string, files []model.OrderFile) error
+	DeleteFolder(folderPath string) error
 }
 
 type DefaultService struct {
@@ -66,7 +67,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 			Err:      ctx.Err(),
 		}
 	default:
-		filePath := filepath.Join(folderPath, file.FileName)
+		filePath := filepath.Join(d.cfg.DirPath, folderPath, file.FileName)
 
 		if file.TGFileID == nil {
 			if file.FileBody == nil {
@@ -133,4 +134,9 @@ func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
 	}
 
 	return fmt.Errorf("file already exists: %s", filePath)
+}
+
+func (d *DefaultService) DeleteFolder(folderPath string) error {
+	folderPath = filepath.Join(d.cfg.DirPath, folderPath)
+	return os.RemoveAll(folderPath)
 }
