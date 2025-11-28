@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -26,21 +27,25 @@ func (d *TelegramDownloader) DownloadFile(ctx context.Context, fileID string) (i
 		FileID: fileID,
 	})
 	if err != nil {
-		// TODO: implement error
-		panic(err)
+		return nil, fmt.Errorf("error geting file %s: %w", fileID, err)
 	}
 
 	link := d.api.FileDownloadLink(file)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, nil)
 	if err != nil {
-		// TODO: implement error
-		panic(err)
+		return nil, fmt.Errorf("error creating request for file %s: %w", fileID, err)
 	}
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		// TODO: implement error
-		panic(err)
+		return nil, fmt.Errorf("error downloading file %s: %w", fileID, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if err := resp.Body.Close(); err != nil {
+			return nil, fmt.Errorf("error closing response body for file %s: %w", fileID, err)
+		}
+		return nil, fmt.Errorf("error downloading file %s: unexpected status code %d", fileID, resp.StatusCode)
 	}
 
 	return resp.Body, nil
