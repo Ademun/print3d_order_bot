@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"print3d-order-bot/internal/pkg/model"
@@ -99,14 +100,48 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 }
 
 func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
-	defer fs.Close()
-	out, err := os.Create(filePath)
-	if err != nil {
+	defer closeFileStream()(fs)
+
+	fileName := filepath.Base(filePath)
+	isSpecialFile := fileName == "links.txt" || fileName == "comments.txt"
+
+	if isSpecialFile {
+		out, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		defer closeFile()
+
+		_, err = io.Copy(out, fs)
 		return err
 	}
-	defer out.Close()
 
-	_, err = io.Copy(out, fs)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		out, err := os.Create(filePath)
+		if err != nil {
+			return err
+		}
+		defer closeFile()(out)
 
-	return err
+		_, err = io.Copy(out, fs)
+		return err
+	}
+
+	return fmt.Errorf("file already exists: %s", filePath)
+}
+
+func closeFileStream() func(fs io.ReadCloser) {
+	return func(fs io.ReadCloser) {
+		if err := fs.Close(); err != nil {
+			slog.Error("failed to close file stream", "err", err)
+		}
+	}
+}
+
+func closeFile() func(out *os.File) {
+	return func(out *os.File) {
+		if err := out.Close(); err != nil {
+			slog.Error("failed to close file", "err", err)
+		}
+	}
 }
