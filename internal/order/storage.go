@@ -11,7 +11,7 @@ import (
 )
 
 type Repo interface {
-	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (*sqlx.Tx, error)
+	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (string, *sqlx.Tx, error)
 	NewOrderCloseTX(tx *sqlx.Tx) error
 	NewOrderRollbackTX(tx *sqlx.Tx) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
@@ -26,32 +26,32 @@ func NewDefaultRepo(db *sqlx.DB) Repo {
 	return &DefaultRepo{db: db}
 }
 
-func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (*sqlx.Tx, error) {
+func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (string, *sqlx.Tx, error) {
 	tx, err := d.db.BeginTxx(ctx, nil)
 	if err != nil {
-		return nil,
+		return "", nil,
 			&pkg.ErrDBProcedure{
 				Cause: "failed to begin transaction",
 				Err:   err,
 			}
 	}
 
-	orderID, err := d.insertOrders(ctx, order, err, tx)
+	orderID, err := d.insertOrder(ctx, order, err, tx)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	query := `update orders set folder_path = ? where order_id = ?`
-	path := createFolderPath(order.ClientName, order.CreatedAt, int(orderID))
+	query := `update orders set folder_path = ? where order_id = ? returning *`
+	path := createFolderPath(order.ClientName, order.CreatedAt, orderID)
 	if _, err := tx.ExecContext(ctx, query, &path); err != nil {
 		if err := tx.Rollback(); err != nil {
-			return nil,
+			return "", nil,
 				&pkg.ErrDBProcedure{
 					Cause: "failed to rollback transaction",
 					Err:   err,
 				}
 		}
-		return nil,
+		return "", nil,
 			&pkg.ErrDBProcedure{
 				Cause: "failed to execute query",
 				Info:  fmt.Sprintf("query: %s", query),
@@ -64,13 +64,13 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 		dbFiles[i] = DBOrderFile{
 			FileName: file.FileName,
 			TgFileID: file.TGFileID,
-			OrderID:  int(orderID),
+			OrderID:  orderID,
 		}
 	}
 
 	query = `insert into order_files (file_name, tg_file_id, order_id) values (:file_name, :tg_file_id, :order_id)`
 	if _, err := tx.NamedExecContext(ctx, query, &dbFiles); err != nil {
-		return nil,
+		return "", nil,
 			&pkg.ErrDBProcedure{
 				Cause: "failed to insert file data",
 				Info:  fmt.Sprintf("query: %s", query),
@@ -78,7 +78,7 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 			}
 	}
 
-	return tx, nil
+	return path, tx, nil
 }
 
 func (d *DefaultRepo) NewOrderCloseTX(tx *sqlx.Tx) error {
@@ -140,7 +140,7 @@ func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
 	return nil
 }
 
-func (d *DefaultRepo) insertOrders(ctx context.Context, order DBOrder, err error, tx *sqlx.Tx) (int, error) {
+func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, err error, tx *sqlx.Tx) (int, error) {
 	query := `insert into orders (order_status, client_name, created_at, folder_path) values  (:order_status, :client_name, :created_at, :folder_path)`
 	result, err := tx.NamedExecContext(ctx, query, &order)
 	if err != nil {

@@ -3,11 +3,10 @@ package order
 import (
 	"context"
 	"log/slog"
+	"print3d-order-bot/internal/file"
 	"print3d-order-bot/internal/pkg/model"
 	"strings"
 	"time"
-
-	"github.com/go-telegram/bot"
 )
 
 type Service interface {
@@ -15,11 +14,15 @@ type Service interface {
 }
 
 type DefaultService struct {
-	repo Repo
+	repo        Repo
+	fileService file.Service
 }
 
-func NewDefaultService(repo Repo) Service {
-	return &DefaultService{repo: repo}
+func NewDefaultService(repo Repo, fileService file.Service) Service {
+	return &DefaultService{
+		repo:        repo,
+		fileService: fileService,
+	}
 }
 
 func (d *DefaultService) NewOrder(ctx context.Context, order model.Order, files []model.OrderFile) error {
@@ -38,14 +41,20 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.Order, files 
 		})
 	}
 
-	tx, err := d.repo.NewOrderOpenTx(ctx, dbOrder, files)
+	folderPath, tx, err := d.repo.NewOrderOpenTx(ctx, dbOrder, files)
 	if err != nil {
 		slog.Error(err.Error())
 		return err
 	}
-	bot.Bot{}.File
 
-	// TODO: File Processing
+	if err := d.fileService.DownloadAndSave(ctx, folderPath, files); err != nil {
+		if err := d.repo.NewOrderRollbackTX(tx); err != nil {
+			slog.Error(err.Error())
+			return err
+		}
+		slog.Error(err.Error())
+		return err
+	}
 
 	if err := d.repo.NewOrderCloseTX(tx); err != nil {
 		slog.Error(err.Error())
