@@ -11,7 +11,9 @@ import (
 
 type Service interface {
 	NewOrder(ctx context.Context, order model.TGOrder, files []model.OrderFile) error
+	AddFilesToOrder(ctx context.Context, orderID int, files []model.OrderFile) error
 	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
+	RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
 
 type DefaultService struct {
@@ -64,6 +66,14 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 	return nil
 }
 
+func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.OrderFile) error {
+	if err := d.repo.NewOrderFiles(ctx, orderID, files); err != nil {
+		slog.Error(err.Error())
+		return err
+	}
+	return nil
+}
+
 func (d *DefaultService) GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error) {
 	files, err := d.repo.GetOrderFiles(ctx, orderID)
 	if err != nil {
@@ -71,4 +81,12 @@ func (d *DefaultService) GetOrderFiles(ctx context.Context, orderID int) ([]mode
 		return nil, err
 	}
 	return files, nil
+}
+
+func (d *DefaultService) RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error {
+	if err := d.repo.DeleteOrderFiles(ctx, orderID, filenames); err != nil {
+		slog.Error(err.Error())
+		return err
+	}
+	return nil
 }
