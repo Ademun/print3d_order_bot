@@ -39,9 +39,10 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	for _, file := range files {
 		sem <- struct{}{}
 		wg.Add(1)
-		go d.processFile(ctx, folderPath, file, &wg, errChan)
+		go d.processFile(ctx, folderPath, file, sem, &wg, errChan)
 	}
 	wg.Wait()
+	close(errChan)
 
 	var failedFiles []FailedFile
 	for ff := range errChan {
@@ -58,49 +59,45 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	return nil
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.OrderFile, wg *sync.WaitGroup, errChan chan FailedFile) {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.OrderFile, sem chan struct{}, wg *sync.WaitGroup, errChan chan FailedFile) {
 	defer wg.Done()
-	select {
-	case <-ctx.Done():
+	defer func() { <-sem }()
+	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.FileName)
+
+	if file.TGFileID == nil {
+		if file.FileBody == nil {
+			errChan <- FailedFile{
+				Filename: file.FileName,
+				Err:      fmt.Errorf("unexpected empty file body for file with no telegram ID"),
+			}
+			return
+		}
+
+		fs := io.NopCloser(strings.NewReader(*file.FileBody))
+		err := d.saveFile(filePath, fs)
+		if err != nil {
+			errChan <- FailedFile{
+				Filename: file.FileName,
+				Err:      err,
+			}
+		}
+		return
+	}
+
+	fs, err := d.downloader.DownloadFile(ctx, *file.TGFileID)
+	if err != nil {
 		errChan <- FailedFile{
 			Filename: file.FileName,
-			Err:      ctx.Err(),
+			Err:      err,
 		}
-	default:
-		filePath := filepath.Join(d.cfg.DirPath, folderPath, file.FileName)
+		return
+	}
 
-		if file.TGFileID == nil {
-			if file.FileBody == nil {
-				errChan <- FailedFile{
-					Filename: file.FileName,
-					Err:      fmt.Errorf("unexpected empty file body for file with no telegram ID"),
-				}
-			}
-
-			fs := io.NopCloser(strings.NewReader(*file.FileBody))
-			err := d.saveFile(filePath, fs)
-			if err != nil {
-				errChan <- FailedFile{
-					Filename: file.FileName,
-					Err:      err,
-				}
-			}
-		}
-
-		fs, err := d.downloader.DownloadFile(ctx, *file.TGFileID)
-		if err != nil {
-			errChan <- FailedFile{
-				Filename: file.FileName,
-				Err:      err,
-			}
-		}
-
-		err = d.saveFile(filePath, fs)
-		if err != nil {
-			errChan <- FailedFile{
-				Filename: file.FileName,
-				Err:      err,
-			}
+	err = d.saveFile(filePath, fs)
+	if err != nil {
+		errChan <- FailedFile{
+			Filename: file.FileName,
+			Err:      err,
 		}
 	}
 }
@@ -111,12 +108,16 @@ func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
 	fileName := filepath.Base(filePath)
 	isAppendFile := slices.Contains(d.cfg.AppendModeFilenames, fileName)
 
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return err
+	}
+
 	if isAppendFile {
 		out, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return err
 		}
-		defer closeFile()
+		defer closeFile()(out)
 
 		_, err = io.Copy(out, fs)
 		return err
