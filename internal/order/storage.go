@@ -14,9 +14,11 @@ type Repo interface {
 	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (string, *sqlx.Tx, error)
 	NewOrderCloseTX(tx *sqlx.Tx) error
 	NewOrderRollbackTX(tx *sqlx.Tx) error
+	NewOrderFiles(ctx context.Context, orderID int, files []model.OrderFile) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
 	DeleteOrder(ctx context.Context, orderID int) error
+	DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
 
 type DefaultRepo struct {
@@ -108,6 +110,27 @@ func (d *DefaultRepo) NewOrderRollbackTX(tx *sqlx.Tx) error {
 	return nil
 }
 
+func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.OrderFile) error {
+	query := `insert into order_files (file_name, order_id) values (:file_name, :order_id)`
+
+	dbFiles := make([]DBOrderFile, len(files))
+	for i, file := range files {
+		dbFiles[i] = DBOrderFile{
+			FileName: file.FileName,
+			OrderID:  orderID,
+		}
+	}
+
+	if _, err := d.db.NamedExecContext(ctx, query, &dbFiles); err != nil {
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to execute query",
+			Info:  fmt.Sprintf("query: %s", query),
+			Err:   err,
+		}
+	}
+	return nil
+}
+
 func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error) {
 	var queryBuilder strings.Builder
 	queryBuilder.WriteString(`select * from orders`)
@@ -148,6 +171,27 @@ func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to delete order",
 			Info:  fmt.Sprintf("orderID: %d", orderID),
+			Err:   err,
+		}
+	}
+	return nil
+}
+
+func (d *DefaultRepo) DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error {
+	query := `delete from order_files where file_name = :file_name and order_id = :order_id`
+
+	dbFiles := make([]DBOrderFile, len(filenames))
+	for i, filename := range filenames {
+		dbFiles[i] = DBOrderFile{
+			FileName: filename,
+			OrderID:  orderID,
+		}
+	}
+
+	if _, err := d.db.ExecContext(ctx, query, &dbFiles); err != nil {
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to execute query",
+			Info:  fmt.Sprintf("query: %s", query),
 			Err:   err,
 		}
 	}
