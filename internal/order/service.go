@@ -15,6 +15,8 @@ type Service interface {
 	GetOrderFilenames(ctx context.Context, orderID int) ([]string, error)
 	GetActiveOrders(ctx context.Context) ([]model.Order, error)
 	GetOrderByID(ctx context.Context, orderID int) (*model.Order, error)
+	CloseOrder(ctx context.Context, orderID int) error
+	RestoreOrder(ctx context.Context, orderID int) error
 	RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
 
@@ -144,6 +146,22 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*model.
 	}
 
 	return order, nil
+}
+
+func (d *DefaultService) CloseOrder(ctx context.Context, orderID int) error {
+	if err := d.repo.UpdateOrderStatus(ctx, orderID, model.StatusClosed); err != nil {
+		slog.Error(err.Error())
+		return err
+	}
+	return nil
+}
+
+func (d *DefaultService) RestoreOrder(ctx context.Context, orderID int) error {
+	if err := d.repo.UpdateOrderStatus(ctx, orderID, model.StatusActive); err != nil {
+		slog.Error(err.Error())
+		return err
+	}
+	return nil
 }
 
 func (d *DefaultService) RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error {
