@@ -21,7 +21,7 @@ type Order struct {
 	OrderStatus OrderStatus
 	ClientName  string
 	CreatedAt   string
-	ClosedAt    string
+	ClosedAt    *string
 	FolderPath  string
 	Comments    string
 	Resources   []url.URL

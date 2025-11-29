@@ -17,7 +17,7 @@ type Repo interface {
 	NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
-	GetOrderFiles(ctx context.Context, orderID int) ([]model.TGOrderFile, error)
+	GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error)
 	DeleteOrder(ctx context.Context, orderID int) error
 	DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
@@ -168,9 +168,9 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, 
 	return order, nil
 }
 
-func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]model.TGOrderFile, error) {
+func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error) {
 	query := `select * from order_files where order_id = ?`
-	var orderFiles []model.TGOrderFile
+	var orderFiles []DBOrderFile
 	if err := d.db.SelectContext(ctx, &orderFiles, query, orderID); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order files",
