@@ -6,6 +6,7 @@ import (
 	"print3d-order-bot/internal/pkg"
 	"print3d-order-bot/internal/pkg/model"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -18,6 +19,7 @@ type Repo interface {
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
 	GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error)
+	UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error
 	DeleteOrder(ctx context.Context, orderID int) error
 	DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
@@ -179,6 +181,42 @@ func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]DBOrder
 		}
 	}
 	return orderFiles, nil
+}
+
+func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error {
+	query := `update orders set order_status = ? where order_id = ?`
+	if _, err := d.db.ExecContext(ctx, query, status, orderID); err != nil {
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to execute query",
+			Info:  fmt.Sprintf("query: %s", query),
+			Err:   err,
+		}
+	}
+
+	if status == model.StatusClosed {
+		query = `update orders set closed_at = ? where order_id = ?`
+		closedAt := time.Now().Format("2006-01-02")
+		if _, err := d.db.ExecContext(ctx, query, closedAt, orderID); err != nil {
+			return &pkg.ErrDBProcedure{
+				Cause: "failed to execute query",
+				Info:  fmt.Sprintf("query: %s", query),
+				Err:   err,
+			}
+		}
+		return nil
+	}
+
+	if status == model.StatusActive {
+		query = `update orders set closed_at = null where order_id = ?`
+		if _, err := d.db.ExecContext(ctx, query, orderID); err != nil {
+			return &pkg.ErrDBProcedure{
+				Cause: "failed to execute query",
+				Info:  fmt.Sprintf("query: %s", query),
+				Err:   err,
+			}
+		}
+	}
+	return nil
 }
 
 func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
