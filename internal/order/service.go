@@ -153,11 +153,3 @@ func (d *DefaultService) RemoveOrderFiles(ctx context.Context, orderID int, file
 	}
 	return nil
 }
-
-func getFilenames(files []DBOrderFile) []string {
-	filenames := make([]string, len(files))
-	for i, filename := range files {
-		filenames[i] = filename.FileName
-	}
-	return filenames
-}

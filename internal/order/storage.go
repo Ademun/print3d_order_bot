@@ -137,7 +137,7 @@ func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder,
 	queryBuilder.WriteString(`select * from orders`)
 
 	if getActive {
-		queryBuilder.WriteString(` WHERE order_status = 0`)
+		queryBuilder.WriteString(` WHERE order_status = 0 OR (order_status = 1 AND closed_at IS NOT NULL AND DATE(closed_at) >= DATE('now', '-1 day')`)
 	}
 	query := queryBuilder.String()
 
