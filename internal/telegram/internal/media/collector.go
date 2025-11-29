@@ -35,14 +35,17 @@ func (c *Collector) GetOrCreateWindow(id int64) *Window {
 	if window, ok := c.windows[id]; ok {
 		return window
 	}
-	c.windows[id] = &Window{
+
+	window := &Window{
 		Media:    make([]model.TGOrderFile, 0),
 		Contacts: make([]string, 0),
 		Links:    make([]string, 0),
 		mu:       sync.Mutex{},
 	}
 
-	return nil
+	c.windows[id] = window
+
+	return window
 }
 
 func (c *Collector) SetWindow(id int64, window *Window) {
