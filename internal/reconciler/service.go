@@ -83,6 +83,20 @@ func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {
 			<-sem
 		}()
 	}
+
+	validFolders := make([]string, len(orders))
+	for i, ord := range orders {
+		validFolders[i] = ord.FolderPath
+	}
+
+	var actualFolders []string
+	for _, folderPath := range actualFolders {
+		if !slices.Contains(validFolders, folderPath) {
+			if err := os.RemoveAll(folderPath); err != nil {
+				slog.Error(err.Error())
+			}
+		}
+	}
 	wg.Wait()
 }
 
@@ -92,14 +106,10 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 		slog.Error(err.Error())
 		return
 	}
-	orderFiles, err := d.orderService.GetOrderFiles(ctx, order.OrderID)
+	orderFilenames, err := d.orderService.GetOrderFilenames(ctx, order.OrderID)
 	if err != nil {
 		slog.Error(err.Error())
 		return
-	}
-	orderFilenames := make([]string, len(orderFiles))
-	for i, file := range orderFiles {
-		orderFilenames[i] = file.FileName
 	}
 
 	dirFiles, err := os.ReadDir(order.FolderPath)
