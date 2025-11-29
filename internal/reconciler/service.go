@@ -113,10 +113,10 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 		actualFilenames[i] = file.Name()
 	}
 
-	var newFiles []model.OrderFile
+	var newFiles []model.TGOrderFile
 	for _, filename := range actualFilenames {
 		if !slices.Contains(orderFilenames, filename) {
-			newFiles = append(newFiles, model.OrderFile{
+			newFiles = append(newFiles, model.TGOrderFile{
 				FileName: filename,
 			})
 		}
@@ -124,7 +124,7 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 
 	var removedFilenames []string
 	for _, filename := range orderFilenames {
-		if !slices.ContainsFunc(newFiles, func(orderFile model.OrderFile) bool {
+		if !slices.ContainsFunc(newFiles, func(orderFile model.TGOrderFile) bool {
 			return orderFile.FileName == filename
 		}) {
 			removedFilenames = append(removedFilenames, filename)

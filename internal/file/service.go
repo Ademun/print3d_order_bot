@@ -14,7 +14,7 @@ import (
 )
 
 type Service interface {
-	DownloadAndSave(ctx context.Context, folderPath string, files []model.OrderFile) error
+	DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error
 	DeleteFolder(folderPath string) error
 }
 
@@ -30,7 +30,7 @@ func NewDefaultService(downloader Downloader, cfg *config.FileServiceCfg) Servic
 	}
 }
 
-func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.OrderFile) error {
+func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error {
 	wg := sync.WaitGroup{}
 	errChan := make(chan FailedFile, len(files))
 	// TODO: research optimal value and make it configurable
@@ -59,7 +59,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	return nil
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.OrderFile, sem chan struct{}, wg *sync.WaitGroup, errChan chan FailedFile) {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.TGOrderFile, sem chan struct{}, wg *sync.WaitGroup, errChan chan FailedFile) {
 	defer wg.Done()
 	defer func() { <-sem }()
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.FileName)

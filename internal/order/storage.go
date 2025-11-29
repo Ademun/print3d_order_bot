@@ -11,13 +11,13 @@ import (
 )
 
 type Repo interface {
-	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (string, *sqlx.Tx, error)
+	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.TGOrderFile) (string, *sqlx.Tx, error)
 	NewOrderCloseTX(tx *sqlx.Tx) error
 	NewOrderRollbackTX(tx *sqlx.Tx) error
-	NewOrderFiles(ctx context.Context, orderID int, files []model.OrderFile) error
+	NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
-	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
+	GetOrderFiles(ctx context.Context, orderID int) ([]model.TGOrderFile, error)
 	DeleteOrder(ctx context.Context, orderID int) error
 	DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
@@ -30,7 +30,7 @@ func NewDefaultRepo(db *sqlx.DB) Repo {
 	return &DefaultRepo{db: db}
 }
 
-func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.OrderFile) (string, *sqlx.Tx, error) {
+func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.TGOrderFile) (string, *sqlx.Tx, error) {
 	tx, err := d.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return "", nil,
@@ -111,7 +111,7 @@ func (d *DefaultRepo) NewOrderRollbackTX(tx *sqlx.Tx) error {
 	return nil
 }
 
-func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.OrderFile) error {
+func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error {
 	query := `insert into order_files (file_name, order_id) values (:file_name, :order_id)`
 
 	dbFiles := make([]DBOrderFile, len(files))
@@ -168,9 +168,9 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, 
 	return order, nil
 }
 
-func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error) {
+func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]model.TGOrderFile, error) {
 	query := `select * from order_files where order_id = ?`
-	var orderFiles []model.OrderFile
+	var orderFiles []model.TGOrderFile
 	if err := d.db.SelectContext(ctx, &orderFiles, query, orderID); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order files",

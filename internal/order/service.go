@@ -10,9 +10,9 @@ import (
 )
 
 type Service interface {
-	NewOrder(ctx context.Context, order model.TGOrder, files []model.OrderFile) error
-	AddFilesToOrder(ctx context.Context, orderID int, files []model.OrderFile) error
-	GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error)
+	NewOrder(ctx context.Context, order model.TGOrder, files []model.TGOrderFile) error
+	AddFilesToOrder(ctx context.Context, orderID int, files []model.TGOrderFile) error
+	GetOrderFiles(ctx context.Context, orderID int) ([]model.TGOrderFile, error)
 	GetActiveOrders(ctx context.Context) ([]DBOrder, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
 	RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error
@@ -30,7 +30,7 @@ func NewDefaultService(repo Repo, fileService file.Service) Service {
 	}
 }
 
-func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.OrderFile) error {
+func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.TGOrderFile) error {
 	createdAt := time.Now().Format("2006-01-02")
 	dbOrder := DBOrder{
 		ClientName: order.ClientName,
@@ -39,7 +39,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 	}
 
 	if strings.TrimSpace(order.Comments) != "" {
-		files = append(files, model.OrderFile{
+		files = append(files, model.TGOrderFile{
 			FileName: "comments.txt",
 			FileBody: &order.Comments,
 			TGFileID: nil,
@@ -68,7 +68,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 	return nil
 }
 
-func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.OrderFile) error {
+func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.TGOrderFile) error {
 	if err := d.repo.NewOrderFiles(ctx, orderID, files); err != nil {
 		slog.Error(err.Error())
 		return err
@@ -76,7 +76,7 @@ func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files
 	return nil
 }
 
-func (d *DefaultService) GetOrderFiles(ctx context.Context, orderID int) ([]model.OrderFile, error) {
+func (d *DefaultService) GetOrderFiles(ctx context.Context, orderID int) ([]model.TGOrderFile, error) {
 	files, err := d.repo.GetOrderFiles(ctx, orderID)
 	if err != nil {
 		slog.Error(err.Error())
