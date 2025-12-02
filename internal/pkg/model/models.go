@@ -1,9 +1,5 @@
 package model
 
-import (
-	"net/url"
-)
-
 type TGOrder struct {
 	ClientName string
 }
@@ -22,8 +18,9 @@ type Order struct {
 	CreatedAt   string
 	ClosedAt    *string
 	FolderPath  string
-	Comments    string
-	Resources   []url.URL
+	Comments    *string
+	Contacts    []string
+	Links       []string
 	Filenames   []string
 }
 
