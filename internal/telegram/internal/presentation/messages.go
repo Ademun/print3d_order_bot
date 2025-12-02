@@ -2,6 +2,7 @@ package presentation
 
 import (
 	"fmt"
+	"print3d-order-bot/internal/pkg/model"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"strings"
 )
@@ -70,6 +71,44 @@ func NewOrderCancelledMsg() string {
 
 func NewOrderCreatedMsg() string {
 	return "**✔️ Заказ успешно создан**"
+}
+
+func OrderViewMsg(data *model.Order) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("**Заказ №%d**", data.OrderID))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(fmt.Sprintf("**👤 Клиент: %s**", escapeMarkdown(data.ClientName)))
+	if data.Comments != nil {
+		sb.WriteString(breakLine(2))
+		sb.WriteString("**💬 Комментарий к заказу:")
+		sb.WriteString(breakLine(1))
+		sb.WriteString(fmt.Sprintf("**%s**", escapeMarkdown(*data.Comments)))
+	}
+	if len(data.Contacts) > 0 {
+		sb.WriteString(breakLine(2))
+		sb.WriteString("**📞 Контакты:")
+		for _, contact := range data.Contacts {
+			sb.WriteString(breakLine(1))
+			sb.WriteString(fmt.Sprintf("**%s**", escapeMarkdown(contact)))
+		}
+	}
+	if len(data.Links) > 0 {
+		sb.WriteString(breakLine(2))
+		sb.WriteString("**🔗 Ссылки:**")
+		for _, link := range data.Links {
+			sb.WriteString(breakLine(1))
+			sb.WriteString(fmt.Sprintf("**%s**", escapeMarkdown(link)))
+		}
+	}
+	if len(data.Filenames) > 0 {
+		sb.WriteString(breakLine(2))
+		sb.WriteString("**📄 Файлы:**")
+		for _, name := range data.Filenames {
+			sb.WriteString(breakLine(1))
+			sb.WriteString(fmt.Sprintf("**%s**", escapeMarkdown(name)))
+		}
+	}
+	return sb.String()
 }
 
 func breakLine(n int) string {
