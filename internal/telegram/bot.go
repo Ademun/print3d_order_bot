@@ -39,6 +39,8 @@ func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, *bot.Bot
 }
 
 func (b *Bot) Start(ctx context.Context) {
+	b.api.RegisterHandler(bot.HandlerTypeMessageText, "orders", bot.MatchTypeCommandStartOnly, b.handleOrderViewCmd)
+
 	b.router.RegisterHandler(fsm.StepIdle, b.handleOrderCreation)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderType, b.handleOrderType)
 	b.router.RegisterHandler(fsm.StepAwaitingClientName, b.handleClientName)
