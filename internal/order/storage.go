@@ -149,7 +149,7 @@ func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder,
 	queryBuilder.WriteString(`select * from orders`)
 
 	if getActive {
-		queryBuilder.WriteString(` WHERE order_status = 0 OR (order_status = 1 AND closed_at IS NOT NULL AND DATE(closed_at) >= DATE('now', '-1 day')`)
+		queryBuilder.WriteString(` WHERE order_status = 0 OR (order_status = 1 AND closed_at IS NOT NULL AND DATE(closed_at) >= DATE('now', '-1 day'))`)
 	}
 	query := queryBuilder.String()
 
@@ -170,27 +170,27 @@ func (d *DefaultRepo) GetOrdersIDs(ctx context.Context, getActive bool) ([]int, 
 	queryBuilder.WriteString(`select order_id from orders`)
 
 	if getActive {
-		queryBuilder.WriteString(` WHERE order_status = 0 OR (order_status = 1 AND closed_at IS NOT NULL AND DATE(closed_at) >= DATE('now', '-1 day')`)
+		queryBuilder.WriteString(` WHERE order_status = 0 OR (order_status = 1 AND closed_at IS NOT NULL AND DATE(closed_at) >= DATE('now', '-1 day'))`)
 	}
 	query := queryBuilder.String()
 
-	var orders []int
-	if err := d.db.SelectContext(ctx, &orders, query); err != nil {
+	var ids []int
+	if err := d.db.SelectContext(ctx, &ids, query); err != nil {
 		return nil,
 			&pkg.ErrDBProcedure{
-				Cause: "failed to select orders",
+				Cause: "failed to select order ids",
 				Info:  fmt.Sprintf("query: %s", query),
 				Err:   err,
 			}
 	}
-	return orders, nil
+	return ids, nil
 }
 
 func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error) {
 	query := `select * from orders where order_id = ?`
 
-	var order *DBOrder
-	if err := d.db.GetContext(ctx, &order, query, orderID); err != nil {
+	var order DBOrder
+	if err := d.db.GetContext(ctx, &order, query, &orderID); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order",
 			Info:  fmt.Sprintf("query: %s", query),
@@ -198,7 +198,7 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, 
 		}
 	}
 
-	return order, nil
+	return &order, nil
 }
 
 func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error) {
