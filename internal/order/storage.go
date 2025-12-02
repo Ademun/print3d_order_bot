@@ -18,6 +18,7 @@ type Repo interface {
 	NewOrderRollbackTX(tx *sqlx.Tx) error
 	NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
+	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
 	GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error)
 	UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error
@@ -153,6 +154,27 @@ func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder,
 	query := queryBuilder.String()
 
 	var orders []DBOrder
+	if err := d.db.SelectContext(ctx, &orders, query); err != nil {
+		return nil,
+			&pkg.ErrDBProcedure{
+				Cause: "failed to select orders",
+				Info:  fmt.Sprintf("query: %s", query),
+				Err:   err,
+			}
+	}
+	return orders, nil
+}
+
+func (d *DefaultRepo) GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error) {
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(`select order_id from orders`)
+
+	if getActive {
+		queryBuilder.WriteString(` WHERE order_status = 0 OR (order_status = 1 AND closed_at IS NOT NULL AND DATE(closed_at) >= DATE('now', '-1 day')`)
+	}
+	query := queryBuilder.String()
+
+	var orders []int
 	if err := d.db.SelectContext(ctx, &orders, query); err != nil {
 		return nil,
 			&pkg.ErrDBProcedure{

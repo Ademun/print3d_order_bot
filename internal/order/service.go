@@ -13,6 +13,7 @@ type Service interface {
 	AddFilesToOrder(ctx context.Context, orderID int, files []model.TGOrderFile) error
 	GetOrderFilenames(ctx context.Context, orderID int) ([]string, error)
 	GetActiveOrders(ctx context.Context) ([]model.Order, error)
+	GetActiveOrdersIDs(ctx context.Context) ([]int, error)
 	GetOrderByID(ctx context.Context, orderID int) (*model.Order, error)
 	CloseOrder(ctx context.Context, orderID int) error
 	RestoreOrder(ctx context.Context, orderID int) error
@@ -109,6 +110,14 @@ func (d *DefaultService) GetActiveOrders(ctx context.Context) ([]model.Order, er
 	}
 
 	return orders, nil
+}
+
+func (d *DefaultService) GetActiveOrdersIDs(ctx context.Context) ([]int, error) {
+	ids, err := d.repo.GetOrdersIDs(ctx, true)
+	if err != nil {
+		slog.Error(err.Error())
+	}
+	return ids, err
 }
 
 func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*model.Order, error) {
