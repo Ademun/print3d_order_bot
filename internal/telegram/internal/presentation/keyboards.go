@@ -50,7 +50,7 @@ func OrderSliderMgmtKbd(total, currentIdx int, action OrderSliderAction) *models
 		})
 	}
 	sliderRow = append(sliderRow, models.InlineKeyboardButton{
-		Text: fmt.Sprintf("%d/%d", currentIdx+1, total),
+		Text: fmt.Sprintf("%d/%d", currentIdx+1, total), CallbackData: "noop",
 	})
 	if currentIdx < total-1 {
 		sliderRow = append(sliderRow, models.InlineKeyboardButton{
