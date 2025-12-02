@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-	"fmt"
 	"sync"
 )
 
@@ -23,13 +22,17 @@ func NewFSM() *FSM {
 	}
 }
 
-func (f *FSM) GetState(userID int64) (*State, error) {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
+func (f *FSM) GetOrCreateState(userID int64) (*State, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
 	state, ok := f.states[userID]
 	if !ok {
-		return nil, fmt.Errorf("user %d not found", userID)
+		state = State{
+			Step: StepIdle,
+			Data: &IdleData{},
+		}
+		f.states[userID] = state
 	}
 
 	return &state, nil
@@ -43,7 +46,7 @@ func (f *FSM) SetState(userID int64, state State) {
 }
 
 func (f *FSM) SetStep(userID int64, step ConversationStep) error {
-	state, err := f.GetState(userID)
+	state, err := f.GetOrCreateState(userID)
 	if err != nil {
 		return err
 	}
@@ -55,7 +58,7 @@ func (f *FSM) SetStep(userID int64, step ConversationStep) error {
 }
 
 func (f *FSM) UpdateData(ctx context.Context, userID int64, data StateData) error {
-	state, err := f.GetState(userID)
+	state, err := f.GetOrCreateState(userID)
 	if err != nil {
 		return err
 	}
@@ -67,7 +70,7 @@ func (f *FSM) UpdateData(ctx context.Context, userID int64, data StateData) erro
 }
 
 func (f *FSM) ResetState(ctx context.Context, userID int64) error {
-	state, err := f.GetState(userID)
+	state, err := f.GetOrCreateState(userID)
 	if err != nil {
 		return err
 	}

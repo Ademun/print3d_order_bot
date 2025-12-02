@@ -16,6 +16,7 @@ import (
 type Service interface {
 	DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error
 	DeleteFolder(folderPath string) error
+	SetDownloader(downloader Downloader)
 }
 
 type DefaultService struct {
@@ -140,4 +141,8 @@ func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
 func (d *DefaultService) DeleteFolder(folderPath string) error {
 	folderPath = filepath.Join(d.cfg.DirPath, folderPath)
 	return os.RemoveAll(folderPath)
+}
+
+func (d *DefaultService) SetDownloader(downloader Downloader) {
+	d.downloader = downloader
 }

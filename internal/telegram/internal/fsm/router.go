@@ -32,6 +32,7 @@ func (r *Router) RegisterHandler(step ConversationStep, handler HandlerFunc) {
 }
 
 func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
+	slog.Info("received mware")
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		var userID int64
 		if update.Message != nil {
@@ -51,7 +52,8 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 			return
 		}
 
-		state, err := r.fsm.GetState(userID)
+		state, err := r.fsm.GetOrCreateState(userID)
+		slog.Info("state", "state", state)
 		if err != nil {
 			return
 		}

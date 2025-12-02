@@ -62,11 +62,7 @@ func (c *Collector) DeleteWindow(id int64) {
 	delete(c.windows, id)
 }
 
-func (c *Collector) ProcessMessage(message *models.Message, onSuccess func(userID int64, window *Window)) {
-	if !HasMediaOrResources(message) {
-		return
-	}
-
+func (c *Collector) ProcessMessage(message *models.Message, onSuccess func(window *Window)) {
 	window := c.GetOrCreateWindow(message.From.ID)
 
 	media := ExtractMedia(message)
@@ -84,7 +80,7 @@ func (c *Collector) ProcessMessage(message *models.Message, onSuccess func(userI
 	}
 
 	window.Timer = time.AfterFunc(time.Second*2, func() {
-		onSuccess(message.From.ID, window)
+		onSuccess(window)
 		c.DeleteWindow(message.From.ID)
 	})
 

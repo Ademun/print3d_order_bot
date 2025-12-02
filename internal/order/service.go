@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"print3d-order-bot/internal/file"
 	"print3d-order-bot/internal/pkg/model"
-	"strings"
 	"time"
 )
 
@@ -38,14 +37,6 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 		ClientName: order.ClientName,
 		CreatedAt:  createdAt,
 		ClosedAt:   nil,
-	}
-
-	if strings.TrimSpace(order.Comments) != "" {
-		files = append(files, model.TGOrderFile{
-			FileName: "comments.txt",
-			FileBody: &order.Comments,
-			TGFileID: nil,
-		})
 	}
 
 	folderPath, tx, err := d.repo.NewOrderOpenTx(ctx, dbOrder, files)

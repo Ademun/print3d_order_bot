@@ -9,23 +9,6 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-func HasMediaOrResources(message *models.Message) bool {
-	result := false
-
-	if message.Audio != nil || message.Document != nil || message.Photo != nil || message.Video != nil || message.VideoNote != nil || message.Voice != nil {
-		result = true
-	}
-
-	for _, entity := range message.Entities {
-		if entity.Type == models.MessageEntityTypeEmail || entity.Type == models.MessageEntityTypePhoneNumber || entity.Type == models.MessageEntityTypeURL {
-			result = true
-			break
-		}
-	}
-
-	return result
-}
-
 func ExtractMedia(message *models.Message) []model.TGOrderFile {
 	var result []model.TGOrderFile
 	dateStr := time.Now().Format("2006-01-02")

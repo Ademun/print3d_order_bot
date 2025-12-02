@@ -6,7 +6,6 @@ import (
 
 type TGOrder struct {
 	ClientName string
-	Comments   string
 }
 
 type OrderStatus int

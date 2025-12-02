@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -49,7 +50,7 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 
 	query := `update orders set folder_path = ? where order_id = ? returning *`
 	path := createFolderPath(order.ClientName, order.CreatedAt, orderID)
-	if _, err := tx.ExecContext(ctx, query, &path); err != nil {
+	if _, err := tx.ExecContext(ctx, query, &path, &orderID); err != nil {
 		if err := tx.Rollback(); err != nil {
 			return "", nil,
 				&pkg.ErrDBProcedure{
@@ -65,17 +66,21 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 			}
 	}
 
-	dbFiles := make([]DBOrderFile, len(files))
-	for i, file := range files {
-		dbFiles[i] = DBOrderFile{
-			FileName: file.FileName,
-			TgFileID: file.TGFileID,
-			OrderID:  orderID,
+	builder := squirrel.Insert("order_files").
+		Columns("file_name", "tg_file_id", "order_id").
+		PlaceholderFormat(squirrel.Question)
+	for _, file := range files {
+		builder = builder.Values(file.FileName, file.TGFileID, orderID)
+	}
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return "", nil, &pkg.ErrDBProcedure{
+			Cause: "failed to build query",
+			Err:   err,
 		}
 	}
 
-	query = `insert into order_files (file_name, tg_file_id, order_id) values (:file_name, :tg_file_id, :order_id)`
-	if _, err := tx.NamedExecContext(ctx, query, &dbFiles); err != nil {
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return "", nil,
 			&pkg.ErrDBProcedure{
 				Cause: "failed to insert file data",
@@ -114,17 +119,21 @@ func (d *DefaultRepo) NewOrderRollbackTX(tx *sqlx.Tx) error {
 }
 
 func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error {
-	query := `insert into order_files (file_name, order_id) values (:file_name, :order_id)`
-
-	dbFiles := make([]DBOrderFile, len(files))
-	for i, file := range files {
-		dbFiles[i] = DBOrderFile{
-			FileName: file.FileName,
-			OrderID:  orderID,
+	builder := squirrel.Insert("order_files").
+		Columns("file_name", "tg_file_id", "order_id").
+		PlaceholderFormat(squirrel.Question)
+	for _, file := range files {
+		builder = builder.Values(file.FileName, file.TGFileID, orderID)
+	}
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to build query",
+			Err:   err,
 		}
 	}
 
-	if _, err := d.db.NamedExecContext(ctx, query, &dbFiles); err != nil {
+	if _, err := d.db.ExecContext(ctx, query, args...); err != nil {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to execute query",
 			Info:  fmt.Sprintf("query: %s", query),
