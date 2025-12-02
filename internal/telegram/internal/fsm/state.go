@@ -11,6 +11,7 @@ const (
 	StepAwaitingOrderComments
 	StepAwaitingNewOrderConfirmation
 	StepAwaitingOrderID
+	StepAwaitingOrderSliderAction
 )
 
 type StateData interface {
@@ -32,12 +33,21 @@ type OrderData struct {
 
 func (data *OrderData) StateData() {}
 
+type OrderSliderData struct {
+	OrdersIDs  []int
+	CurrentIdx int
+}
+
+func (data *OrderSliderData) StateData() {}
+
 func dataTypeForStep(step ConversationStep) StateData {
 	switch step {
 	case StepIdle:
 		return &IdleData{}
 	case StepAwaitingOrderType, StepAwaitingClientName, StepAwaitingOrderComments, StepAwaitingNewOrderConfirmation, StepAwaitingOrderID:
 		return &OrderData{}
+	case StepAwaitingOrderSliderAction:
+		return &OrderSliderData{}
 	}
 	return nil
 }
