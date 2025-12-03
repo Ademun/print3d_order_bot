@@ -26,22 +26,6 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		return
 	}
 
-	order, err := b.orderService.GetOrderByID(ctx, ids[0])
-	if err != nil {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
-		})
-		return
-	}
-	var orderAction presentation.OrderSliderAction
-	if order.OrderStatus == model.StatusActive {
-		orderAction = presentation.OrderSliderClose
-	} else {
-		orderAction = presentation.OrderSliderRestore
-	}
-
 	if len(ids) == 0 {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
@@ -51,15 +35,27 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		return
 	}
 
+	order, err := b.orderService.GetOrderByID(ctx, ids[0])
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+	action := extractOrderAction(order.OrderStatus)
+
 	newData := &fsm.OrderSliderData{
 		OrdersIDs:  ids,
 		CurrentIdx: 0,
 	}
+
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      userID,
 		Text:        presentation.OrderViewMsg(order),
-		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(ids), 0, orderAction),
+		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(ids), 0, action),
 		ParseMode:   models.ParseModeMarkdown,
 	})
 }
@@ -106,19 +102,25 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		})
 		return
 	}
-	var orderAction presentation.OrderSliderAction
-	if order.OrderStatus == model.StatusActive {
-		orderAction = presentation.OrderSliderClose
-	} else {
-		orderAction = presentation.OrderSliderRestore
-	}
+	action := extractOrderAction(order.OrderStatus)
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      userID,
 		MessageID:   update.CallbackQuery.Message.Message.ID,
 		Text:        presentation.OrderViewMsg(order),
-		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(newData.OrdersIDs), newData.CurrentIdx, orderAction),
+		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(newData.OrdersIDs), newData.CurrentIdx, action),
 		ParseMode:   models.ParseModeMarkdown,
 	})
+}
+
+func extractOrderAction(status model.OrderStatus) presentation.OrderSliderAction {
+	switch status {
+	case model.StatusActive:
+		return presentation.OrderSliderClose
+	case model.StatusClosed:
+		return presentation.OrderSliderRestore
+	default:
+		return presentation.OrderSliderClose
+	}
 }
