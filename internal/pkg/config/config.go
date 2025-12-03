@@ -23,8 +23,7 @@ type DBConfig struct {
 }
 
 type FileServiceCfg struct {
-	DirPath             string   `yaml:"dir_path"`
-	AppendModeFilenames []string `yaml:"append_mode_filenames"`
+	DirPath string `yaml:"dir_path"`
 }
 
 type TelegramCfg struct {

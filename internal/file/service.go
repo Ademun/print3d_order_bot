@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/pkg/model"
-	"slices"
 	"strings"
 	"sync"
 )
@@ -106,21 +105,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
 	defer closeFileStream()(fs)
 
-	fileName := filepath.Base(filePath)
-	isAppendFile := slices.Contains(d.cfg.AppendModeFilenames, fileName)
-
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return err
-	}
-
-	if isAppendFile {
-		out, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-		defer closeFile()(out)
-
-		_, err = io.Copy(out, fs)
 		return err
 	}
 

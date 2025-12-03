@@ -67,7 +67,7 @@ func (d *DefaultService) startReconciliationLoop(ctx context.Context) {
 }
 
 func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {
-	orders, err := d.orderService.GetActiveOrders(ctx)
+	orders, err := d.orderService.GetActiveOrders()
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -101,12 +101,12 @@ func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {
 }
 
 func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
-	order, err := d.orderService.GetOrderByID(ctx, orderID)
+	order, err := d.orderService.GetOrderByID(orderID)
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
-	orderFilenames, err := d.orderService.GetOrderFilenames(ctx, order.OrderID)
+	orderFilenames, err := d.orderService.GetOrderFilenames(order.OrderID)
 	if err != nil {
 		slog.Error(err.Error())
 		return
@@ -141,11 +141,11 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 		}
 	}
 
-	if err := d.orderService.AddFilesToOrder(ctx, order.OrderID, newFiles); err != nil {
+	if err := d.orderService.AddFilesToOrder(order.OrderID, newFiles); err != nil {
 		slog.Error(err.Error())
 	}
 
-	if err := d.orderService.RemoveOrderFiles(ctx, order.OrderID, removedFilenames); err != nil {
+	if err := d.orderService.RemoveOrderFiles(order.OrderID, removedFilenames); err != nil {
 		slog.Error(err.Error())
 	}
 }
