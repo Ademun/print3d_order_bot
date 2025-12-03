@@ -46,6 +46,7 @@ func (b *Bot) Start(ctx context.Context) {
 	b.router.RegisterHandler(fsm.StepAwaitingClientName, b.handleClientName)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderComments, b.handleOrderComments)
 	b.router.RegisterHandler(fsm.StepAwaitingNewOrderConfirmation, b.handleNewOrderConfirmation)
+	b.router.RegisterHandler(fsm.StepAwaitingOrderSliderAction, b.handleOrderViewAction)
 
 	slog.Info("Started Telegram Bot")
 	go b.api.Start(ctx)
@@ -53,6 +54,18 @@ func (b *Bot) Start(ctx context.Context) {
 
 func (b *Bot) SendMessage(ctx context.Context, params *bot.SendMessageParams) {
 	if _, err := b.api.SendMessage(ctx, params); err != nil {
+		slog.Error(err.Error())
+	}
+}
+
+func (b *Bot) EditMessageText(ctx context.Context, params *bot.EditMessageTextParams) {
+	if _, err := b.api.EditMessageText(ctx, params); err != nil {
+		slog.Error(err.Error())
+	}
+}
+
+func (b *Bot) AnswerCallbackQuery(ctx context.Context, params *bot.AnswerCallbackQueryParams) {
+	if _, err := b.api.AnswerCallbackQuery(ctx, params); err != nil {
 		slog.Error(err.Error())
 	}
 }

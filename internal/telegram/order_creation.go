@@ -42,6 +42,9 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 	if update.CallbackQuery == nil {
 		return
 	}
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
 	userID := update.CallbackQuery.From.ID
 	orderType := update.CallbackQuery.Data
 
@@ -138,6 +141,9 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 	if update.CallbackQuery == nil {
 		return
 	}
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
 	userID := update.CallbackQuery.From.ID
 	action := update.CallbackQuery.Data
 

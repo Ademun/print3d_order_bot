@@ -23,18 +23,20 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 			Text:      presentation.GenericErrorMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
+		return
 	}
 
-	currentOrder, err := b.orderService.GetOrderByID(ctx, ids[0])
+	order, err := b.orderService.GetOrderByID(ctx, ids[0])
 	if err != nil {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
+		return
 	}
 	var orderAction presentation.OrderSliderAction
-	if currentOrder.OrderStatus == model.StatusActive {
+	if order.OrderStatus == model.StatusActive {
 		orderAction = presentation.OrderSliderClose
 	} else {
 		orderAction = presentation.OrderSliderRestore
@@ -46,6 +48,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 			Text:      presentation.EmptyOrderListMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
+		return
 	}
 
 	newData := &fsm.OrderSliderData{
@@ -55,12 +58,67 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      userID,
-		Text:        presentation.OrderViewMsg(currentOrder),
+		Text:        presentation.OrderViewMsg(order),
 		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(ids), 0, orderAction),
 		ParseMode:   models.ParseModeMarkdown,
 	})
 }
 
-func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *models.Update, data *fsm.StateData) {
+func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+	if update.CallbackQuery == nil {
+		return
+	}
+	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+	userID := update.CallbackQuery.From.ID
 
+	sliderAction := update.CallbackQuery.Data
+
+	newData, ok := data.(*fsm.OrderSliderData)
+	if !ok {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	if sliderAction == "previous" {
+		if newData.CurrentIdx > 0 {
+			newData.CurrentIdx--
+		}
+	} else if sliderAction == "next" {
+		if newData.CurrentIdx < len(newData.OrdersIDs)-1 {
+			newData.CurrentIdx++
+		}
+	}
+
+	order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
+	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+	var orderAction presentation.OrderSliderAction
+	if order.OrderStatus == model.StatusActive {
+		orderAction = presentation.OrderSliderClose
+	} else {
+		orderAction = presentation.OrderSliderRestore
+	}
+
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
+	b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      userID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		Text:        presentation.OrderViewMsg(order),
+		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(newData.OrdersIDs), newData.CurrentIdx, orderAction),
+		ParseMode:   models.ParseModeMarkdown,
+	})
 }
