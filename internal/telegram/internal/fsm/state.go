@@ -25,10 +25,10 @@ func (data *IdleData) StateData() {}
 type OrderData struct {
 	UserID     int64
 	ClientName string
-	Comments   *string
-	Files      []model.TGOrderFile
+	Comments   []string
 	Contacts   []string
 	Links      []string
+	Files      []model.TGOrderFile
 }
 
 func (data *OrderData) StateData() {}
@@ -39,15 +39,3 @@ type OrderSliderData struct {
 }
 
 func (data *OrderSliderData) StateData() {}
-
-func dataTypeForStep(step ConversationStep) StateData {
-	switch step {
-	case StepIdle:
-		return &IdleData{}
-	case StepAwaitingOrderType, StepAwaitingClientName, StepAwaitingOrderComments, StepAwaitingNewOrderConfirmation, StepAwaitingOrderID:
-		return &OrderData{}
-	case StepAwaitingOrderSliderAction:
-		return &OrderSliderData{}
-	}
-	return nil
-}

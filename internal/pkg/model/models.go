@@ -21,7 +21,7 @@ type Order struct {
 	OrderStatus OrderStatus
 	CreatedAt   time.Time
 	ClientName  string
-	Comments    *string
+	Comments    []string
 	Contacts    []string
 	Links       []string
 	ClosedAt    *time.Time

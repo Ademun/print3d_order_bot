@@ -32,11 +32,13 @@ func NewOrderPreviewMsg(data *fsm.OrderData) string {
 	sb.WriteString("*❓ Создать новый заказ?*")
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
-	if data.Comments != nil {
+	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*💬 Комментарий к заказу:*")
-		sb.WriteString(breakLine(1))
-		sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(*data.Comments)))
+		sb.WriteString("*💬 Комментарии к заказу:*")
+		for _, comment := range data.Comments {
+			sb.WriteString(breakLine(1))
+			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(comment)))
+		}
 	}
 	if len(data.Contacts) > 0 {
 		sb.WriteString(breakLine(2))
@@ -78,11 +80,13 @@ func OrderViewMsg(data *model.Order) string {
 	sb.WriteString(fmt.Sprintf("*Заказ №%d*", data.OrderID))
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
-	if data.Comments != nil {
+	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*💬 Комментарий к заказу:*")
-		sb.WriteString(breakLine(1))
-		sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(*data.Comments)))
+		sb.WriteString("*💬 Комментарии к заказу:*")
+		for _, comment := range data.Comments {
+			sb.WriteString(breakLine(1))
+			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(comment)))
+		}
 	}
 	if len(data.Contacts) > 0 {
 		sb.WriteString(breakLine(2))
