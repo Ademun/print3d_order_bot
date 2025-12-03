@@ -2,14 +2,18 @@ package order
 
 import (
 	"print3d-order-bot/internal/pkg/model"
+	"time"
 )
 
 type DBOrder struct {
 	OrderID     int               `db:"order_id"`
 	OrderStatus model.OrderStatus `db:"order_status"`
 	ClientName  string            `db:"client_name"`
-	CreatedAt   string            `db:"created_at"`
-	ClosedAt    *string           `db:"closed_at"`
+	CreatedAt   time.Time         `db:"created_at"`
+	Comments    []string          `db:"comments"`
+	Contacts    []string          `db:"contacts"`
+	Links       []string          `db:"links"`
+	ClosedAt    *time.Time        `db:"closed_at"`
 	FolderPath  string            `db:"folder_path"`
 }
 

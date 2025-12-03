@@ -10,8 +10,16 @@ import (
 )
 
 type Config struct {
+	DB          DBConfig
 	FileService FileServiceCfg `yaml:"file_service"`
 	TelegramCfg TelegramCfg    `yaml:"telegram"`
+}
+
+type DBConfig struct {
+	Username string `env:"DB_USERNAME,required"`
+	Password string `env:"DB_PASSWORD,required"`
+	Host     string `env:"DB_HOST,required"`
+	Database string `env:"DB_DATABASE,required"`
 }
 
 type FileServiceCfg struct {

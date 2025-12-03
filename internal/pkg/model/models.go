@@ -1,26 +1,31 @@
 package model
 
+import "time"
+
 type TGOrder struct {
 	ClientName string
+	Comments   []string
+	Contacts   []string
+	Links      []string
 }
 
-type OrderStatus int
+type OrderStatus string
 
 const (
-	StatusActive OrderStatus = iota
-	StatusClosed
+	StatusActive OrderStatus = "active"
+	StatusClosed             = "closed"
 )
 
 type Order struct {
 	OrderID     int
 	OrderStatus OrderStatus
+	CreatedAt   time.Time
 	ClientName  string
-	CreatedAt   string
-	ClosedAt    *string
-	FolderPath  string
 	Comments    *string
 	Contacts    []string
 	Links       []string
+	ClosedAt    *time.Time
+	FolderPath  string
 	Filenames   []string
 }
 

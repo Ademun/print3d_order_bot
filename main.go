@@ -15,8 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/jackc/pgx"
 )
 
 func main() {
@@ -27,14 +26,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	db, err := sqlx.Open("sqlite3", "dev.db")
+	conn, err := pgx.Connect(pgx.ConnConfig{
+		Host:     cfg.DB.Host,
+		User:     cfg.DB.Username,
+		Password: cfg.DB.Password,
+		Database: cfg.DB.Database,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fileService := file.NewDefaultService(nil, &cfg.FileService)
 
-	orderRepo := order.NewDefaultRepo(db)
+	orderRepo := order.NewDefaultRepo(conn)
 	orderService := order.NewDefaultService(orderRepo, fileService)
 
 	bot, api, err := telegram.NewBot(orderService, &cfg.TelegramCfg)

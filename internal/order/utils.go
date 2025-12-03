@@ -3,12 +3,13 @@ package order
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gosimple/slug"
 )
 
-func createFolderPath(clientName, createdAt string, orderID int) string {
-	path := strings.Join([]string{clientName, createdAt, strconv.Itoa(orderID)}, "_")
+func createFolderPath(clientName string, createdAt time.Time, orderID int) string {
+	path := strings.Join([]string{clientName, createdAt.Format("2006-01-02"), strconv.Itoa(orderID)}, "_")
 	return slug.Make(path)
 }
 
