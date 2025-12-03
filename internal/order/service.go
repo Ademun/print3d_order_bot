@@ -33,13 +33,13 @@ func NewDefaultService(repo Repo, fileService file.Service) Service {
 }
 
 func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.TGOrderFile) error {
-	createdAt := time.Now()
 	dbOrder := DBOrder{
-		ClientName: order.ClientName,
-		Comments:   order.Comments,
-		Contacts:   order.Contacts,
-		Links:      order.Links,
-		CreatedAt:  createdAt,
+		OrderStatus: model.StatusActive,
+		ClientName:  order.ClientName,
+		Comments:    order.Comments,
+		Contacts:    order.Contacts,
+		Links:       order.Links,
+		CreatedAt:   time.Now(),
 	}
 
 	folderPath, tx, err := d.repo.NewOrderOpenTx(dbOrder, files)
@@ -141,6 +141,9 @@ func (d *DefaultService) GetOrderByID(orderID int) (*model.Order, error) {
 		OrderID:     dbOrder.OrderID,
 		OrderStatus: dbOrder.OrderStatus,
 		ClientName:  dbOrder.ClientName,
+		Comments:    dbOrder.Comments,
+		Contacts:    dbOrder.Contacts,
+		Links:       dbOrder.Links,
 		CreatedAt:   dbOrder.CreatedAt,
 		ClosedAt:    dbOrder.ClosedAt,
 		FolderPath:  dbOrder.FolderPath,

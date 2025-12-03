@@ -1,13 +1,13 @@
-create type order_status as enum ('open', 'closed');
+create type order_status as enum ('active', 'closed');
 
 create table orders
 (
     order_id     int primary key generated always as identity,
     order_status order_status not null,
     client_name  text         not null,
-    comments     text[],
-    contacts     text[],
-    links        text[],
+    comments     text[] default '{}',
+    contacts     text[] default '{}',
+    links        text[] default '{}',
     created_at   timestamptz  not null,
     closed_at    timestamptz,
     folder_path  text

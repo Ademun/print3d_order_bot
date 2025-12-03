@@ -16,7 +16,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 	}
 	userID := update.Message.From.ID
 
-	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
+	ids, err := b.orderService.GetActiveOrdersIDs()
 	if err != nil {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
@@ -35,7 +35,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		return
 	}
 
-	order, err := b.orderService.GetOrderByID(ctx, ids[0])
+	order, err := b.orderService.GetOrderByID(ids[0])
 	if err != nil {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
@@ -92,7 +92,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		}
 	}
 
-	order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
+	order, err := b.orderService.GetOrderByID(newData.OrdersIDs[newData.CurrentIdx])
 	if err != nil {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
