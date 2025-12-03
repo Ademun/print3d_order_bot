@@ -65,7 +65,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := db.Close(); err != nil {
+	if err := conn.Close(); err != nil {
 		log.Fatal(err)
 	}
 }
