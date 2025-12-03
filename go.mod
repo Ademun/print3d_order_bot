@@ -7,7 +7,6 @@ toolchain go1.24.4
 require (
 	github.com/go-telegram/bot v1.17.0
 	github.com/gosimple/slug v1.15.0
-	github.com/jmoiron/sqlx v1.4.0
 )
 
 require (
