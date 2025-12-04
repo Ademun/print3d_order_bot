@@ -44,7 +44,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 
 	folderPath, tx, err := d.repo.NewOrderOpenTx(dbOrder, files)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error creating new order", "error", err)
 		return err
 	}
 
@@ -53,12 +53,12 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 			slog.Error(err.Error())
 			return err
 		}
-		slog.Error(err.Error())
+		slog.Error("Error creating new order", "error", err)
 		return err
 	}
 
 	if err := d.repo.NewOrderCloseTX(tx); err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error creating new order", "error", err)
 		return err
 	}
 	return nil
@@ -66,7 +66,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 
 func (d *DefaultService) AddFilesToOrder(orderID int, files []model.TGOrderFile) error {
 	if err := d.repo.NewOrderFiles(orderID, files); err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error adding files to order", "error", err, "orderID", orderID)
 		return err
 	}
 	return nil
@@ -75,7 +75,7 @@ func (d *DefaultService) AddFilesToOrder(orderID int, files []model.TGOrderFile)
 func (d *DefaultService) GetOrderFilenames(orderID int) ([]string, error) {
 	dbFiles, err := d.repo.GetOrderFiles(orderID)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error retrieving order filenames", "error", err, "orderID", orderID)
 		return nil, err
 	}
 
@@ -87,7 +87,7 @@ func (d *DefaultService) GetOrderFilenames(orderID int) ([]string, error) {
 func (d *DefaultService) GetActiveOrders() ([]model.Order, error) {
 	dbOrders, err := d.repo.GetOrders(true)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error retrieving active orders", "error", err)
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func (d *DefaultService) GetActiveOrders() ([]model.Order, error) {
 func (d *DefaultService) GetActiveOrdersIDs() ([]int, error) {
 	ids, err := d.repo.GetOrdersIDs(true)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error retrieving active orders IDs", "error", err)
 	}
 	return ids, err
 }
@@ -125,13 +125,13 @@ func (d *DefaultService) GetActiveOrdersIDs() ([]int, error) {
 func (d *DefaultService) GetOrderByID(orderID int) (*model.Order, error) {
 	dbOrder, err := d.repo.GetOrderByID(orderID)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error retrieving order", "error", err, "orderID", orderID)
 		return nil, err
 	}
 
 	orderFiles, err := d.repo.GetOrderFiles(dbOrder.OrderID)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error retrieving order", "error", err, "orderID", orderID)
 		return nil, err
 	}
 
@@ -155,7 +155,7 @@ func (d *DefaultService) GetOrderByID(orderID int) (*model.Order, error) {
 
 func (d *DefaultService) CloseOrder(orderID int) error {
 	if err := d.repo.UpdateOrderStatus(orderID, model.StatusClosed); err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error closing order", "error", err, "orderID", orderID)
 		return err
 	}
 	return nil
@@ -163,7 +163,7 @@ func (d *DefaultService) CloseOrder(orderID int) error {
 
 func (d *DefaultService) RestoreOrder(orderID int) error {
 	if err := d.repo.UpdateOrderStatus(orderID, model.StatusActive); err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error restoring order", "error", err, "orderID", orderID)
 		return err
 	}
 	return nil
@@ -171,7 +171,7 @@ func (d *DefaultService) RestoreOrder(orderID int) error {
 
 func (d *DefaultService) RemoveOrderFiles(orderID int, filenames []string) error {
 	if err := d.repo.DeleteOrderFiles(orderID, filenames); err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error removing order files", "error", err, "orderID", orderID)
 		return err
 	}
 	return nil
