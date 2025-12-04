@@ -79,7 +79,9 @@ func NewOrderCreatedMsg() string {
 func OrderViewMsg(data *model.Order) string {
 	slog.Info("struct", *data)
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("*Заказ №%d*", data.OrderID))
+	sb.WriteString(fmt.Sprintf("*Заказ №%d от %s*", data.OrderID, escapeMarkdown(data.CreatedAt.Format("2006-01-02"))))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(fmt.Sprintf("*Статус: %s*", getStatusStr(data.OrderStatus)))
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
 	if len(data.Comments) > 0 {

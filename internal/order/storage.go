@@ -82,6 +82,10 @@ func (d *DefaultRepo) NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (
 			}
 	}
 
+	if len(files) == 0 {
+		return path, tx, nil
+	}
+
 	builder := d.builder.Insert("order_files").
 		Columns("file_name", "tg_file_id", "order_id")
 	for _, file := range files {
@@ -164,11 +168,11 @@ func (d *DefaultRepo) NewOrderFiles(orderID int, files []model.TGOrderFile) erro
 }
 
 func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
-	stmt := d.builder.Select("*").From("orders")
+	stmt := d.builder.Select("*").From("orders").OrderBy("created_at")
 	if getActive {
-		stmt.Where(squirrel.Eq{"order_status": 0}).
+		stmt = stmt.Where(squirrel.Eq{"order_status": model.StatusActive}).
 			Where(squirrel.Or{
-				squirrel.NotEq{"closed_at": nil},
+				squirrel.Eq{"closed_at": nil},
 				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
 			})
 	}
@@ -209,15 +213,16 @@ func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
 }
 
 func (d *DefaultRepo) GetOrdersIDs(getActive bool) ([]int, error) {
-	stmt := d.builder.Select("order_id").From("orders")
+	stmt := d.builder.Select("order_id").From("orders").OrderBy("created_at")
 	if getActive {
-		stmt.Where(squirrel.Eq{"order_status": 0}).
+		stmt = stmt.Where(squirrel.Eq{"order_status": model.StatusActive}).
 			Where(squirrel.Or{
-				squirrel.NotEq{"closed_at": nil},
+				squirrel.Eq{"closed_at": nil},
 				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
 			})
 	}
 	query, args, err := stmt.ToSql()
+	fmt.Println(query, args)
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to build query",
@@ -316,11 +321,11 @@ func (d *DefaultRepo) UpdateOrderStatus(orderID int, status model.OrderStatus) e
 	stmt := d.builder.Update("orders").Set("order_status", status)
 	switch status {
 	case model.StatusClosed:
-		stmt.Set("closed_at", time.Now())
+		stmt = stmt.Set("closed_at", time.Now())
 	case model.StatusActive:
-		stmt.Set("closed_at", nil)
+		stmt = stmt.Set("closed_at", nil)
 	}
-	stmt.Where(squirrel.Eq{"order_id": orderID})
+	stmt = stmt.Where(squirrel.Eq{"order_id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
 		return &pkg.ErrDBProcedure{

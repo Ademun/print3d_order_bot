@@ -183,10 +183,14 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		return
 	}
 
+	disablePreview := true
 	b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-		Text:      presentation.NewOrderCreatedMsg(),
+		ChatID: update.CallbackQuery.Message.Message.Chat.ID,
+		Text:   presentation.NewOrderCreatedMsg(),
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &disablePreview,
+		},
 		ParseMode: models.ParseModeMarkdown,
 	})
 }

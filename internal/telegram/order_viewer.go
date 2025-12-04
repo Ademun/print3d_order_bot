@@ -51,12 +51,16 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		CurrentIdx: 0,
 	}
 
+	disablePreview := true
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      userID,
 		Text:        presentation.OrderViewMsg(order),
 		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(ids), 0, action),
-		ParseMode:   models.ParseModeMarkdown,
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &disablePreview,
+		},
+		ParseMode: models.ParseModeMarkdown,
 	})
 }
 
@@ -82,14 +86,35 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		return
 	}
 
-	if sliderAction == "previous" {
+	switch sliderAction {
+	case "previous":
 		if newData.CurrentIdx > 0 {
 			newData.CurrentIdx--
 		}
-	} else if sliderAction == "next" {
+	case "next":
 		if newData.CurrentIdx < len(newData.OrdersIDs)-1 {
 			newData.CurrentIdx++
 		}
+	case "close":
+		if err := b.orderService.CloseOrder(newData.OrdersIDs[newData.CurrentIdx]); err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    userID,
+				Text:      presentation.GenericErrorMsg(),
+				ParseMode: models.ParseModeMarkdown,
+			})
+			return
+		}
+	case "restore":
+		if err := b.orderService.RestoreOrder(newData.OrdersIDs[newData.CurrentIdx]); err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    userID,
+				Text:      presentation.GenericErrorMsg(),
+				ParseMode: models.ParseModeMarkdown,
+			})
+			return
+		}
+	default:
+		return
 	}
 
 	order, err := b.orderService.GetOrderByID(newData.OrdersIDs[newData.CurrentIdx])
@@ -104,13 +129,17 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 	}
 	action := extractOrderAction(order.OrderStatus)
 
+	disablePreview := true
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      userID,
 		MessageID:   update.CallbackQuery.Message.Message.ID,
 		Text:        presentation.OrderViewMsg(order),
 		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(newData.OrdersIDs), newData.CurrentIdx, action),
-		ParseMode:   models.ParseModeMarkdown,
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &disablePreview,
+		},
+		ParseMode: models.ParseModeMarkdown,
 	})
 }
 
