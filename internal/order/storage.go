@@ -170,11 +170,12 @@ func (d *DefaultRepo) NewOrderFiles(orderID int, files []model.TGOrderFile) erro
 func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
 	stmt := d.builder.Select("*").From("orders").OrderBy("created_at")
 	if getActive {
-		stmt = stmt.Where(squirrel.Eq{"order_status": model.StatusActive}).
-			Where(squirrel.Or{
-				squirrel.Eq{"closed_at": nil},
+		stmt = stmt.Where(squirrel.Or{
+			squirrel.Eq{"order_status": model.StatusActive},
+			squirrel.And{
+				squirrel.NotEq{"closed_at": nil},
 				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
-			})
+			}})
 	}
 	query, args, err := stmt.ToSql()
 	if err != nil {
@@ -215,14 +216,14 @@ func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
 func (d *DefaultRepo) GetOrdersIDs(getActive bool) ([]int, error) {
 	stmt := d.builder.Select("order_id").From("orders").OrderBy("created_at")
 	if getActive {
-		stmt = stmt.Where(squirrel.Eq{"order_status": model.StatusActive}).
-			Where(squirrel.Or{
-				squirrel.Eq{"closed_at": nil},
+		stmt = stmt.Where(squirrel.Or{
+			squirrel.Eq{"order_status": model.StatusActive},
+			squirrel.And{
+				squirrel.NotEq{"closed_at": nil},
 				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
-			})
+			}})
 	}
 	query, args, err := stmt.ToSql()
-	fmt.Println(query, args)
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to build query",
