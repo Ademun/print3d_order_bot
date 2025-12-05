@@ -3,6 +3,7 @@ package fsm
 import (
 	"context"
 	"log/slog"
+	"print3d-order-bot/internal/telegram/internal/media"
 	"strings"
 	"sync"
 
@@ -12,9 +13,10 @@ import (
 
 type HandlerFunc func(ctx context.Context, api *bot.Bot, update *models.Update, state StateData)
 type Router struct {
-	fsm      *FSM
-	handlers map[ConversationStep]HandlerFunc
-	mu       *sync.RWMutex
+	fsm               *FSM
+	handlers          map[ConversationStep]HandlerFunc
+	attachmentHandler HandlerFunc
+	mu                *sync.RWMutex
 }
 
 func NewRouter(fsm *FSM) *Router {
@@ -23,6 +25,10 @@ func NewRouter(fsm *FSM) *Router {
 		handlers: make(map[ConversationStep]HandlerFunc),
 		mu:       &sync.RWMutex{},
 	}
+}
+
+func (r *Router) SetAttachmentHandler(handler HandlerFunc) {
+	r.attachmentHandler = handler
 }
 
 func (r *Router) RegisterHandler(step ConversationStep, handler HandlerFunc) {
@@ -41,6 +47,13 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 					return
 				}
 				next(ctx, b, update)
+				return
+			}
+			if media.HasMedia(update.Message) {
+				if err := r.fsm.ResetState(ctx, userID); err != nil {
+					return
+				}
+				r.attachmentHandler(ctx, b, update, &IdleData{})
 				return
 			}
 		} else if update.CallbackQuery != nil {
