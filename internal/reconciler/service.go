@@ -81,11 +81,11 @@ func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {
 	for _, ord := range orders {
 		sem <- struct{}{}
 		wg.Add(1)
-		go func() {
+		go func(o model.Order) {
 			defer wg.Done()
-			d.ReconcileOrder(ctx, ord.OrderID)
+			d.ReconcileOrder(ctx, o.OrderID)
 			<-sem
-		}()
+		}(ord)
 	}
 	wg.Wait()
 
