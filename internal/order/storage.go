@@ -394,8 +394,8 @@ func (d *DefaultRepo) DeleteOrderFiles(ctx context.Context, orderID int, filenam
 
 func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, tx pgx.Tx) (int, error) {
 	stmt := d.builder.Insert("orders").
-		Columns("order_status, client_name, comments, contacts, links, created_at, folder_path").
-		Values(order.OrderStatus, order.ClientName, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
+		Columns("order_status, client_name, cost, comments, contacts, links, created_at, folder_path").
+		Values(order.OrderStatus, order.ClientName, order.Cost, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
 		Suffix("returning order_id")
 	query, args, err := stmt.ToSql()
 	if err != nil {

@@ -36,6 +36,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 	dbOrder := DBOrder{
 		OrderStatus: model.StatusActive,
 		ClientName:  order.ClientName,
+		Cost:        order.Cost,
 		Comments:    order.Comments,
 		Contacts:    order.Contacts,
 		Links:       order.Links,
@@ -109,6 +110,7 @@ func (d *DefaultService) GetActiveOrders(ctx context.Context) ([]model.Order, er
 			OrderID:     dbOrder.OrderID,
 			OrderStatus: dbOrder.OrderStatus,
 			ClientName:  dbOrder.ClientName,
+			Cost:        dbOrder.Cost,
 			CreatedAt:   dbOrder.CreatedAt,
 			ClosedAt:    dbOrder.ClosedAt,
 			FolderPath:  dbOrder.FolderPath,

@@ -4,6 +4,7 @@ import "time"
 
 type TGOrder struct {
 	ClientName string
+	Cost       float32
 	Comments   []string
 	Contacts   []string
 	Links      []string
@@ -21,6 +22,7 @@ type Order struct {
 	OrderStatus OrderStatus
 	CreatedAt   time.Time
 	ClientName  string
+	Cost        float32
 	Comments    []string
 	Contacts    []string
 	Links       []string
