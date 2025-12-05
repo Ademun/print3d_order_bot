@@ -11,9 +11,6 @@ import (
 )
 
 func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *models.Update) {
-	if update.Message == nil {
-		return
-	}
 	userID := update.Message.From.ID
 
 	ids, err := b.orderService.GetActiveOrdersIDs(ctx)

@@ -39,6 +39,7 @@ func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, *bot.Bot
 }
 
 func (b *Bot) Start(ctx context.Context) {
+	b.api.RegisterHandler(bot.HandlerTypeMessageText, "help", bot.MatchTypeCommandStartOnly, b.handlerHelpCmd)
 	b.api.RegisterHandler(bot.HandlerTypeMessageText, "orders", bot.MatchTypeCommandStartOnly, b.handleOrderViewCmd)
 
 	b.router.SetAttachmentHandler(b.handleOrderCreation)
