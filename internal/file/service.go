@@ -13,6 +13,7 @@ import (
 )
 
 type Service interface {
+	CreateFolder(folderPath string) error
 	DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error
 	DeleteFolder(folderPath string) error
 	SetDownloader(downloader Downloader)
@@ -28,6 +29,11 @@ func NewDefaultService(downloader Downloader, cfg *config.FileServiceCfg) Servic
 		downloader: downloader,
 		cfg:        cfg,
 	}
+}
+
+func (d *DefaultService) CreateFolder(folderPath string) error {
+	path := filepath.Join(d.cfg.DirPath, folderPath)
+	return os.MkdirAll(path, os.ModePerm)
 }
 
 func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error {

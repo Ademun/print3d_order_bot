@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -26,19 +26,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	conn, err := pgx.Connect(pgx.ConnConfig{
-		Host:     cfg.DB.Host,
-		User:     cfg.DB.Username,
-		Password: cfg.DB.Password,
-		Database: cfg.DB.Database,
-	})
+	pgconfig, err := pgxpool.ParseConfig(cfg.DB.ConnString)
 	if err != nil {
 		log.Fatal(err)
 	}
+	pool, err := pgxpool.NewWithConfig(ctx, pgconfig)
 
 	fileService := file.NewDefaultService(nil, &cfg.FileService)
 
-	orderRepo := order.NewDefaultRepo(conn)
+	orderRepo := order.NewDefaultRepo(pool)
 	orderService := order.NewDefaultService(orderRepo, fileService)
 
 	bot, api, err := telegram.NewBot(orderService, &cfg.TelegramCfg)
@@ -53,7 +49,7 @@ func main() {
 	downloader := file.NewTelegramDownloader(api, httpClient)
 	fileService.SetDownloader(downloader)
 
-	reconcilerService := reconciler.NewDefaultService(orderService, fileService)
+	reconcilerService := reconciler.NewDefaultService(orderService, fileService, &cfg.FileService)
 	reconcilerService.Start(ctx)
 
 	<-ctx.Done()
@@ -64,8 +60,5 @@ func main() {
 	if err := reconcilerService.Stop(ctx); err != nil {
 		log.Fatal(err)
 	}
-
-	if err := conn.Close(); err != nil {
-		log.Fatal(err)
-	}
+	pool.Close()
 }

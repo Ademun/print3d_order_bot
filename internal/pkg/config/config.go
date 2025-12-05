@@ -16,10 +16,7 @@ type Config struct {
 }
 
 type DBConfig struct {
-	Username string `env:"DB_USERNAME,required"`
-	Password string `env:"DB_PASSWORD,required"`
-	Host     string `env:"DB_HOST,required"`
-	Database string `env:"DB_DATABASE,required"`
+	ConnString string `env:"DB_CONN_STRING"`
 }
 
 type FileServiceCfg struct {

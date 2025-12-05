@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"context"
-	"log/slog"
 	"print3d-order-bot/internal/pkg/model"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
@@ -14,7 +13,6 @@ import (
 )
 
 func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
-	slog.Info("received update")
 	if update.Message == nil {
 		return
 	}

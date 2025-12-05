@@ -16,7 +16,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 	}
 	userID := update.Message.From.ID
 
-	ids, err := b.orderService.GetActiveOrdersIDs()
+	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
 	if err != nil {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
@@ -35,7 +35,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		return
 	}
 
-	order, err := b.orderService.GetOrderByID(ids[0])
+	order, err := b.orderService.GetOrderByID(ctx, ids[0])
 	if err != nil {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
@@ -96,7 +96,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			newData.CurrentIdx++
 		}
 	case "close":
-		if err := b.orderService.CloseOrder(newData.OrdersIDs[newData.CurrentIdx]); err != nil {
+		if err := b.orderService.CloseOrder(ctx, newData.OrdersIDs[newData.CurrentIdx]); err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
@@ -105,7 +105,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			return
 		}
 	case "restore":
-		if err := b.orderService.RestoreOrder(newData.OrdersIDs[newData.CurrentIdx]); err != nil {
+		if err := b.orderService.RestoreOrder(ctx, newData.OrdersIDs[newData.CurrentIdx]); err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
@@ -117,7 +117,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		return
 	}
 
-	order, err := b.orderService.GetOrderByID(newData.OrdersIDs[newData.CurrentIdx])
+	order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
 	if err != nil {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{

@@ -1,43 +1,45 @@
 package order
 
 import (
+	"context"
 	"fmt"
 	"print3d-order-bot/internal/pkg"
 	"print3d-order-bot/internal/pkg/model"
 	"time"
 
 	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repo interface {
-	NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (string, *pgx.Tx, error)
-	NewOrderCloseTX(tx *pgx.Tx) error
-	NewOrderRollbackTX(tx *pgx.Tx) error
-	NewOrderFiles(orderID int, files []model.TGOrderFile) error
-	GetOrders(getActive bool) ([]DBOrder, error)
-	GetOrdersIDs(getActive bool) ([]int, error)
-	GetOrderByID(orderID int) (*DBOrder, error)
-	GetOrderFiles(orderID int) ([]DBOrderFile, error)
-	UpdateOrderStatus(orderID int, status model.OrderStatus) error
-	DeleteOrder(orderID int) error
-	DeleteOrderFiles(orderID int, filenames []string) error
+	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.TGOrderFile) (string, pgx.Tx, error)
+	NewOrderCloseTX(ctx context.Context, tx pgx.Tx) error
+	NewOrderRollbackTX(ctx context.Context, tx pgx.Tx) error
+	NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error
+	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
+	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
+	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
+	GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error)
+	UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error
+	DeleteOrder(ctx context.Context, orderID int) error
+	DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error
 }
 
 type DefaultRepo struct {
-	conn    *pgx.Conn
+	pool    *pgxpool.Pool
 	builder squirrel.StatementBuilderType
 }
 
-func NewDefaultRepo(conn *pgx.Conn) Repo {
+func NewDefaultRepo(pool *pgxpool.Pool) Repo {
 	return &DefaultRepo{
-		conn:    conn,
+		pool:    pool,
 		builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
 
-func (d *DefaultRepo) NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (string, *pgx.Tx, error) {
-	tx, err := d.conn.Begin()
+func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.TGOrderFile) (string, pgx.Tx, error) {
+	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return "", nil,
 			&pkg.ErrDBProcedure{
@@ -47,7 +49,7 @@ func (d *DefaultRepo) NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (
 			}
 	}
 
-	orderID, err := d.insertOrder(order, tx)
+	orderID, err := d.insertOrder(ctx, order, tx)
 	if err != nil {
 		return "", nil, err
 	}
@@ -65,8 +67,8 @@ func (d *DefaultRepo) NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (
 		}
 	}
 
-	if _, err := tx.Exec(query, args...); err != nil {
-		if err := tx.Rollback(); err != nil {
+	if _, err := tx.Exec(ctx, query, args...); err != nil {
+		if err := tx.Rollback(ctx); err != nil {
 			return "", nil,
 				&pkg.ErrDBProcedure{
 					Cause: "failed to rollback transaction",
@@ -100,7 +102,7 @@ func (d *DefaultRepo) NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (
 		}
 	}
 
-	if _, err := tx.Exec(query, args...); err != nil {
+	if _, err := tx.Exec(ctx, query, args...); err != nil {
 		return "", nil,
 			&pkg.ErrDBProcedure{
 				Cause: "failed to insert file data",
@@ -112,9 +114,9 @@ func (d *DefaultRepo) NewOrderOpenTx(order DBOrder, files []model.TGOrderFile) (
 	return path, tx, nil
 }
 
-func (d *DefaultRepo) NewOrderCloseTX(tx *pgx.Tx) error {
-	if err := tx.Commit(); err != nil {
-		if err := tx.Rollback(); err != nil {
+func (d *DefaultRepo) NewOrderCloseTX(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Commit(ctx); err != nil {
+		if err := tx.Rollback(ctx); err != nil {
 			return &pkg.ErrDBProcedure{
 				Cause: "failed to rollback transaction",
 				Info:  "NewOrderCloseTx",
@@ -130,8 +132,8 @@ func (d *DefaultRepo) NewOrderCloseTX(tx *pgx.Tx) error {
 	return nil
 }
 
-func (d *DefaultRepo) NewOrderRollbackTX(tx *pgx.Tx) error {
-	if err := tx.Rollback(); err != nil {
+func (d *DefaultRepo) NewOrderRollbackTX(ctx context.Context, tx pgx.Tx) error {
+	if err := tx.Rollback(ctx); err != nil {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to rollback transaction",
 			Info:  "NewOrderRollbackTx",
@@ -141,10 +143,9 @@ func (d *DefaultRepo) NewOrderRollbackTX(tx *pgx.Tx) error {
 	return nil
 }
 
-func (d *DefaultRepo) NewOrderFiles(orderID int, files []model.TGOrderFile) error {
+func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error {
 	builder := d.builder.Insert("order_files").
-		Columns("file_name", "tg_file_id", "order_id").
-		PlaceholderFormat(squirrel.Question)
+		Columns("file_name", "tg_file_id", "order_id")
 	for _, file := range files {
 		builder = builder.Values(file.FileName, file.TGFileID, orderID)
 	}
@@ -157,7 +158,7 @@ func (d *DefaultRepo) NewOrderFiles(orderID int, files []model.TGOrderFile) erro
 		}
 	}
 
-	if _, err := d.conn.Exec(query, args...); err != nil {
+	if _, err := d.pool.Exec(ctx, query, args...); err != nil {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to execute query",
 			Info:  fmt.Sprintf("NewOrderFiles; query: %s", query),
@@ -167,14 +168,14 @@ func (d *DefaultRepo) NewOrderFiles(orderID int, files []model.TGOrderFile) erro
 	return nil
 }
 
-func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
+func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error) {
 	stmt := d.builder.Select("*").From("orders").OrderBy("created_at")
 	if getActive {
 		stmt = stmt.Where(squirrel.Or{
 			squirrel.Eq{"order_status": model.StatusActive},
 			squirrel.And{
 				squirrel.NotEq{"closed_at": nil},
-				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
+				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 second'"),
 			}})
 	}
 	query, args, err := stmt.ToSql()
@@ -186,7 +187,7 @@ func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
 		}
 	}
 
-	rows, err := d.conn.Query(query, args...)
+	rows, err := d.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil,
 			&pkg.ErrDBProcedure{
@@ -213,14 +214,14 @@ func (d *DefaultRepo) GetOrders(getActive bool) ([]DBOrder, error) {
 	return orders, nil
 }
 
-func (d *DefaultRepo) GetOrdersIDs(getActive bool) ([]int, error) {
+func (d *DefaultRepo) GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error) {
 	stmt := d.builder.Select("order_id").From("orders").OrderBy("created_at")
 	if getActive {
 		stmt = stmt.Where(squirrel.Or{
 			squirrel.Eq{"order_status": model.StatusActive},
 			squirrel.And{
 				squirrel.NotEq{"closed_at": nil},
-				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
+				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 second'"),
 			}})
 	}
 	query, args, err := stmt.ToSql()
@@ -232,7 +233,7 @@ func (d *DefaultRepo) GetOrdersIDs(getActive bool) ([]int, error) {
 		}
 	}
 
-	rows, err := d.conn.Query(query, args...)
+	rows, err := d.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil,
 			&pkg.ErrDBProcedure{
@@ -259,7 +260,7 @@ func (d *DefaultRepo) GetOrdersIDs(getActive bool) ([]int, error) {
 	return ids, nil
 }
 
-func (d *DefaultRepo) GetOrderByID(orderID int) (*DBOrder, error) {
+func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error) {
 	stmt := d.builder.Select("*").From("orders").Where(squirrel.Eq{"order_id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
@@ -271,7 +272,7 @@ func (d *DefaultRepo) GetOrderByID(orderID int) (*DBOrder, error) {
 	}
 
 	var order DBOrder
-	if err := d.conn.QueryRow(query, args...).Scan(&order.OrderID, &order.OrderStatus, &order.ClientName, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
+	if err := d.pool.QueryRow(ctx, query, args...).Scan(&order.OrderID, &order.OrderStatus, &order.ClientName, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order",
 			Info:  fmt.Sprintf("GetOrderByID; query: %s", query),
@@ -282,7 +283,7 @@ func (d *DefaultRepo) GetOrderByID(orderID int) (*DBOrder, error) {
 	return &order, nil
 }
 
-func (d *DefaultRepo) GetOrderFiles(orderID int) ([]DBOrderFile, error) {
+func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]DBOrderFile, error) {
 	stmt := d.builder.Select("*").From("order_files").Where(squirrel.Eq{"order_id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
@@ -292,7 +293,7 @@ func (d *DefaultRepo) GetOrderFiles(orderID int) ([]DBOrderFile, error) {
 			Err:   err,
 		}
 	}
-	rows, err := d.conn.Query(query, args...)
+	rows, err := d.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order files",
@@ -318,7 +319,7 @@ func (d *DefaultRepo) GetOrderFiles(orderID int) ([]DBOrderFile, error) {
 	return orderFiles, nil
 }
 
-func (d *DefaultRepo) UpdateOrderStatus(orderID int, status model.OrderStatus) error {
+func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error {
 	stmt := d.builder.Update("orders").Set("order_status", status)
 	switch status {
 	case model.StatusClosed:
@@ -336,7 +337,7 @@ func (d *DefaultRepo) UpdateOrderStatus(orderID int, status model.OrderStatus) e
 		}
 	}
 
-	if _, err := d.conn.Exec(query, args...); err != nil {
+	if _, err := d.pool.Exec(ctx, query, args...); err != nil {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to execute query",
 			Info:  fmt.Sprintf("UpdateOrderStatus; query: %s", query),
@@ -346,7 +347,7 @@ func (d *DefaultRepo) UpdateOrderStatus(orderID int, status model.OrderStatus) e
 	return nil
 }
 
-func (d *DefaultRepo) DeleteOrder(orderID int) error {
+func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
 	stmt := d.builder.Delete("orders").Where(squirrel.Eq{"order_id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
@@ -356,7 +357,7 @@ func (d *DefaultRepo) DeleteOrder(orderID int) error {
 			Err:   err,
 		}
 	}
-	if _, err := d.conn.Exec(query, args...); err != nil {
+	if _, err := d.pool.Exec(ctx, query, args...); err != nil {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to delete order",
 			Info:  fmt.Sprintf("DeleteOrder; orderID: %d", orderID),
@@ -366,7 +367,7 @@ func (d *DefaultRepo) DeleteOrder(orderID int) error {
 	return nil
 }
 
-func (d *DefaultRepo) DeleteOrderFiles(orderID int, filenames []string) error {
+func (d *DefaultRepo) DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error {
 	stmt := d.builder.Delete("order_files").
 		Where(squirrel.And{
 			squirrel.Eq{"order_id": orderID},
@@ -381,7 +382,7 @@ func (d *DefaultRepo) DeleteOrderFiles(orderID int, filenames []string) error {
 		}
 	}
 
-	if _, err := d.conn.Exec(query, args...); err != nil {
+	if _, err := d.pool.Exec(ctx, query, args...); err != nil {
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to execute query",
 			Info:  fmt.Sprintf("DeleteOrderFiles; query: %s", query),
@@ -391,7 +392,7 @@ func (d *DefaultRepo) DeleteOrderFiles(orderID int, filenames []string) error {
 	return nil
 }
 
-func (d *DefaultRepo) insertOrder(order DBOrder, tx *pgx.Tx) (int, error) {
+func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, tx pgx.Tx) (int, error) {
 	stmt := d.builder.Insert("orders").
 		Columns("order_status, client_name, comments, contacts, links, created_at, folder_path").
 		Values(order.OrderStatus, order.ClientName, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
@@ -406,7 +407,7 @@ func (d *DefaultRepo) insertOrder(order DBOrder, tx *pgx.Tx) (int, error) {
 	}
 
 	var orderID int
-	if err := tx.QueryRow(query, args...).Scan(&orderID); err != nil {
+	if err := tx.QueryRow(ctx, query, args...).Scan(&orderID); err != nil {
 		return 0, &pkg.ErrDBProcedure{
 			Cause: "failed to insert order",
 			Info:  fmt.Sprintf("InsertOrder; query: %s", query),

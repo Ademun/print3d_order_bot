@@ -2,7 +2,6 @@ package presentation
 
 import (
 	"fmt"
-	"log/slog"
 	"print3d-order-bot/internal/pkg/model"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"strings"
@@ -77,7 +76,6 @@ func NewOrderCreatedMsg() string {
 }
 
 func OrderViewMsg(data *model.Order) string {
-	slog.Info("struct", *data)
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("*Заказ №%d от %s*", data.OrderID, escapeMarkdown(data.CreatedAt.Format("2006-01-02"))))
 	sb.WriteString(breakLine(2))
