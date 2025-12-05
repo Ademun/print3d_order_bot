@@ -175,7 +175,7 @@ func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder,
 			squirrel.Eq{"order_status": model.StatusActive},
 			squirrel.And{
 				squirrel.NotEq{"closed_at": nil},
-				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 second'"),
+				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
 			}})
 	}
 	query, args, err := stmt.ToSql()
@@ -221,7 +221,7 @@ func (d *DefaultRepo) GetOrdersIDs(ctx context.Context, getActive bool) ([]int, 
 			squirrel.Eq{"order_status": model.StatusActive},
 			squirrel.And{
 				squirrel.NotEq{"closed_at": nil},
-				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 second'"),
+				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
 			}})
 	}
 	query, args, err := stmt.ToSql()

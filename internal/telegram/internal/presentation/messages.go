@@ -111,7 +111,8 @@ func OrderViewMsg(data *model.Order) string {
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("*💲 Стоимость заказа %f₽*", data.Cost))
+	costStr := strconv.FormatFloat(float64(data.Cost), 'f', -1, 64)
+	sb.WriteString(fmt.Sprintf("*💲 Стоимость заказа %s₽*", escapeMarkdown(costStr)))
 	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
 		sb.WriteString("*💬 Комментарии к заказу:*")

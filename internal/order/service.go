@@ -148,6 +148,7 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*model.
 		OrderID:     dbOrder.OrderID,
 		OrderStatus: dbOrder.OrderStatus,
 		ClientName:  dbOrder.ClientName,
+		Cost:        dbOrder.Cost,
 		Comments:    dbOrder.Comments,
 		Contacts:    dbOrder.Contacts,
 		Links:       dbOrder.Links,

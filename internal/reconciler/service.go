@@ -57,7 +57,7 @@ func (d *DefaultService) Stop(ctx context.Context) error {
 }
 
 func (d *DefaultService) startReconciliationLoop(ctx context.Context) {
-	ticker := time.Tick(time.Second)
+	ticker := time.Tick(time.Hour)
 
 	for {
 		select {

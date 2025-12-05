@@ -5,7 +5,7 @@ create table orders
     order_id     int primary key generated always as identity,
     order_status order_status not null,
     client_name  text         not null,
-    cost         float4       not null,
+    cost         real         not null,
     comments     text[] default '{}',
     contacts     text[] default '{}',
     links        text[] default '{}',
