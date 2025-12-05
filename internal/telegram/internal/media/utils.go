@@ -33,6 +33,25 @@ func HasMedia(message *models.Message) bool {
 		return true
 	}
 
+	if message.Entities != nil {
+		result := false
+		for _, entity := range message.Entities {
+			if entity.Type == models.MessageEntityTypeURL {
+				result = true
+				break
+			}
+			if entity.Type == models.MessageEntityTypeEmail {
+				result = true
+				break
+			}
+			if entity.Type == models.MessageEntityTypePhoneNumber {
+				result = true
+				break
+			}
+		}
+		return result
+	}
+
 	return false
 }
 

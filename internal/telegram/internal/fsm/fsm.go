@@ -22,7 +22,7 @@ func NewFSM() *FSM {
 	}
 }
 
-func (f *FSM) GetOrCreateState(userID int64) (*State, error) {
+func (f *FSM) GetOrCreateState(userID int64) (State, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -35,7 +35,7 @@ func (f *FSM) GetOrCreateState(userID int64) (*State, error) {
 		f.states[userID] = state
 	}
 
-	return &state, nil
+	return state, nil
 }
 
 func (f *FSM) SetState(userID int64, state State) {
@@ -52,7 +52,7 @@ func (f *FSM) SetStep(userID int64, step ConversationStep) error {
 	}
 
 	state.Step = step
-	f.SetState(userID, *state)
+	f.SetState(userID, state)
 
 	return nil
 }
@@ -64,7 +64,7 @@ func (f *FSM) UpdateData(ctx context.Context, userID int64, data StateData) erro
 	}
 
 	state.Data = data
-	f.SetState(userID, *state)
+	f.SetState(userID, state)
 
 	return nil
 }
@@ -77,7 +77,7 @@ func (f *FSM) ResetState(ctx context.Context, userID int64) error {
 
 	state.Step = StepIdle
 	state.Data = &IdleData{}
-	f.SetState(userID, *state)
+	f.SetState(userID, state)
 
 	return nil
 }

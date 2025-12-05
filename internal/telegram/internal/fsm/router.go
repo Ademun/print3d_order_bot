@@ -11,7 +11,7 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-type HandlerFunc func(ctx context.Context, api *bot.Bot, update *models.Update, state StateData)
+type HandlerFunc func(ctx context.Context, api *bot.Bot, update *models.Update, state State)
 type Router struct {
 	fsm               *FSM
 	handlers          map[ConversationStep]HandlerFunc
@@ -50,10 +50,11 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 				return
 			}
 			if media.HasMedia(update.Message) {
-				if err := r.fsm.ResetState(ctx, userID); err != nil {
+				state, err := r.fsm.GetOrCreateState(userID)
+				if err != nil {
 					return
 				}
-				r.attachmentHandler(ctx, b, update, &IdleData{})
+				r.attachmentHandler(ctx, b, update, state)
 				return
 			}
 		} else if update.CallbackQuery != nil {
@@ -74,7 +75,7 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 		r.mu.RUnlock()
 
 		if exists {
-			handler(ctx, b, update, state.Data)
+			handler(ctx, b, update, state)
 			return
 		}
 

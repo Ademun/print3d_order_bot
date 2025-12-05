@@ -12,13 +12,32 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
 	if update.Message == nil {
 		return
 	}
 	userID := update.Message.From.ID
 
 	b.collector.ProcessMessage(update.Message, func(window *media.Window) {
+		data, ok := state.Data.(*fsm.OrderData)
+		if ok {
+			newData := &fsm.OrderData{
+				UserID:     data.UserID,
+				ClientName: data.ClientName,
+				Comments:   data.Comments,
+				Contacts:   append(data.Contacts, window.Contacts...),
+				Links:      append(data.Links, window.Links...),
+				Files:      append(data.Files, window.Media...),
+			}
+			b.tryTransition(ctx, userID, state.Step, newData)
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    update.Message.Chat.ID,
+				Text:      presentation.AddedDataToOrderMsg(),
+				ParseMode: models.ParseModeMarkdown,
+			})
+			return
+		}
+
 		newData := &fsm.OrderData{
 			UserID:   userID,
 			Files:    window.Media,
@@ -35,7 +54,7 @@ func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *mod
 	})
 }
 
-func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -46,7 +65,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 	orderType := update.CallbackQuery.Data
 
 	if orderType == "new_order" {
-		b.tryTransition(ctx, userID, fsm.StepAwaitingClientName, data)
+		b.tryTransition(ctx, userID, fsm.StepAwaitingClientName, state.Data)
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 			Text:      presentation.AskClientNameMsg(),
@@ -55,7 +74,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		return
 	}
 
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderID, data)
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderID, state.Data)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 		Text:      presentation.AskOrderSelectionMsg(),
@@ -63,14 +82,14 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 	})
 }
 
-func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
 	if update.Message == nil {
 		return
 	}
 	userID := update.Message.From.ID
 	clientName := strings.TrimSpace(update.Message.Text)
 
-	newData, ok := data.(*fsm.OrderData)
+	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -91,7 +110,7 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 	})
 }
 
-func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
 	if update.Message == nil && update.CallbackQuery == nil {
 		return
 	}
@@ -104,7 +123,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 	}
 
 	if shouldSkip(update) {
-		b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, data)
+		b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, state.Data)
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.CallbackQuery.Message.Message.Chat.ID,
 		})
@@ -113,7 +132,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 
 	comments := strings.TrimSpace(update.Message.Text)
 
-	newData, ok := data.(*fsm.OrderData)
+	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -134,7 +153,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 	})
 }
 
-func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -154,7 +173,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		return
 	}
 
-	newData, ok := data.(*fsm.OrderData)
+	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{

@@ -64,7 +64,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 	})
 }
 
-func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *models.Update, data fsm.StateData) {
+func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -75,7 +75,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 
 	sliderAction := update.CallbackQuery.Data
 
-	newData, ok := data.(*fsm.OrderSliderData)
+	newData, ok := state.Data.(*fsm.OrderSliderData)
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
