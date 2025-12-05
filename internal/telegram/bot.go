@@ -45,6 +45,7 @@ func (b *Bot) Start(ctx context.Context) {
 	b.router.SetAttachmentHandler(b.handleOrderCreation)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderType, b.handleOrderType)
 	b.router.RegisterHandler(fsm.StepAwaitingClientName, b.handleClientName)
+	b.router.RegisterHandler(fsm.StepAwaitingOrderCost, b.handleOrderCost)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderComments, b.handleOrderComments)
 	b.router.RegisterHandler(fsm.StepAwaitingNewOrderConfirmation, b.handleNewOrderConfirmation)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderSliderAction, b.handleOrderViewAction)
@@ -55,7 +56,7 @@ func (b *Bot) Start(ctx context.Context) {
 
 func (b *Bot) SendMessage(ctx context.Context, params *bot.SendMessageParams) {
 	if _, err := b.api.SendMessage(ctx, params); err != nil {
-		slog.Error(err.Error())
+		slog.Error("Error sending message", "error", err, "params", params)
 	}
 }
 

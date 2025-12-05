@@ -32,7 +32,7 @@ func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *mod
 			}
 			b.tryTransition(ctx, userID, state.Step, newData)
 			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    update.Message.Chat.ID,
+				ChatID:    userID,
 				Text:      presentation.AddedDataToOrderMsg(),
 				ParseMode: models.ParseModeMarkdown,
 			})
@@ -47,7 +47,7 @@ func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *mod
 		}
 		b.tryTransition(ctx, userID, fsm.StepAwaitingOrderType, newData)
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:      update.Message.Chat.ID,
+			ChatID:      userID,
 			Text:        presentation.AskOrderTypeMsg(),
 			ReplyMarkup: presentation.OrderTypeKbd(),
 			ParseMode:   models.ParseModeMarkdown,
@@ -94,7 +94,7 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
@@ -104,7 +104,7 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
+		ChatID:    userID,
 		Text:      presentation.AskOrderCostMsg(),
 		ParseMode: models.ParseModeMarkdown,
 	})
@@ -121,7 +121,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 	if err != nil {
 		b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, state.Data)
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.CostValidationErrorMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
@@ -131,16 +131,17 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
+		return
 	}
 	newData.Cost = float32(cost)
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderComments, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
+		ChatID:      userID,
 		Text:        presentation.AskOrderCommentsMsg(),
 		ReplyMarkup: presentation.SkipKbd(),
 		ParseMode:   models.ParseModeMarkdown,
@@ -157,33 +158,40 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 		userID = update.Message.From.ID
 	} else if update.CallbackQuery != nil {
 		userID = update.CallbackQuery.From.ID
-	}
-
-	if shouldSkip(update) {
-		b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, state.Data)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.CallbackQuery.Message.Message.Chat.ID,
+		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: update.CallbackQuery.ID,
 		})
-		return
 	}
-
-	comments := strings.TrimSpace(update.Message.Text)
 
 	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
 			ParseMode: models.ParseModeMarkdown,
 		})
 		return
 	}
+	newData.Comments = make([]string, 0)
+
+	if shouldSkip(update) {
+		b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, state.Data)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:      userID,
+			Text:        presentation.NewOrderPreviewMsg(newData),
+			ReplyMarkup: presentation.YesNoKbd(),
+			ParseMode:   models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	comments := strings.TrimSpace(update.Message.Text)
 	newData.Comments = append(newData.Comments, comments)
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.Message.Chat.ID,
+		ChatID:      userID,
 		Text:        presentation.NewOrderPreviewMsg(newData),
 		ReplyMarkup: presentation.YesNoKbd(),
 		ParseMode:   models.ParseModeMarkdown,
