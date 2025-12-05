@@ -201,7 +201,7 @@ func (d *DefaultRepo) GetOrders(ctx context.Context, getActive bool) ([]DBOrder,
 	var orders []DBOrder
 	for rows.Next() {
 		var order DBOrder
-		if err := rows.Scan(&order.OrderID, &order.OrderStatus, &order.ClientName, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
+		if err := rows.Scan(&order.OrderID, &order.OrderStatus, &order.ClientName, &order.Cost, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
 			return nil, &pkg.ErrDBProcedure{
 				Cause: "failed to scan row",
 				Info:  fmt.Sprintf("GetOrders; query: %s", query),
@@ -272,7 +272,7 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, 
 	}
 
 	var order DBOrder
-	if err := d.pool.QueryRow(ctx, query, args...).Scan(&order.OrderID, &order.OrderStatus, &order.ClientName, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
+	if err := d.pool.QueryRow(ctx, query, args...).Scan(&order.OrderID, &order.OrderStatus, &order.ClientName, &order.Cost, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order",
 			Info:  fmt.Sprintf("GetOrderByID; query: %s", query),
