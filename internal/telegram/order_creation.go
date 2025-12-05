@@ -6,6 +6,7 @@ import (
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
 	"print3d-order-bot/internal/telegram/internal/presentation"
+	"strconv"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -100,6 +101,42 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 		return
 	}
 	newData.ClientName = clientName
+
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, newData)
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    update.Message.Chat.ID,
+		Text:      presentation.AskOrderCostMsg(),
+		ParseMode: models.ParseModeMarkdown,
+	})
+}
+
+func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
+	if update.Message == nil {
+		return
+	}
+	userID := update.Message.From.ID
+
+	costStr := update.Message.Text
+	cost, err := strconv.ParseFloat(costStr, 32)
+	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, state.Data)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    update.Message.Chat.ID,
+			Text:      presentation.CostValidationErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+	}
+
+	newData, ok := state.Data.(*fsm.OrderData)
+	if !ok {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    update.Message.Chat.ID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+	}
+	newData.Cost = float32(cost)
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderComments, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{

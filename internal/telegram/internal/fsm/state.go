@@ -8,6 +8,7 @@ const (
 	StepIdle ConversationStep = iota
 	StepAwaitingOrderType
 	StepAwaitingClientName
+	StepAwaitingOrderCost
 	StepAwaitingOrderComments
 	StepAwaitingNewOrderConfirmation
 	StepAwaitingOrderID
@@ -25,6 +26,7 @@ func (data *IdleData) StateData() {}
 type OrderData struct {
 	UserID     int64
 	ClientName string
+	Cost       float32
 	Comments   []string
 	Contacts   []string
 	Links      []string

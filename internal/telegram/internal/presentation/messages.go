@@ -35,6 +35,14 @@ func AskClientNameMsg() string {
 	return "*👤 Введите имя клиента*"
 }
 
+func AskOrderCostMsg() string {
+	return "*💰 Введите стоимость заказа в рублях*"
+}
+
+func CostValidationErrorMsg() string {
+	return "❌ Стоимость заказа должна быть числом"
+}
+
 func AskOrderCommentsMsg() string {
 	return "*💬 Введите комментарий к заказу*"
 }
