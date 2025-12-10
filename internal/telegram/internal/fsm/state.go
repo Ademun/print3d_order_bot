@@ -11,8 +11,8 @@ const (
 	StepAwaitingOrderCost
 	StepAwaitingOrderComments
 	StepAwaitingNewOrderConfirmation
-	StepAwaitingOrderID
-	StepAwaitingOrderSliderAction
+	StepAwaitingOrderSelectSliderAction
+	StepAwaitingOrderViewSliderAction
 )
 
 type StateData interface {
@@ -31,6 +31,8 @@ type OrderData struct {
 	Contacts   []string
 	Links      []string
 	Files      []model.TGOrderFile
+	OrdersIDs  []int
+	CurrentIdx int
 }
 
 func (data *OrderData) StateData() {}

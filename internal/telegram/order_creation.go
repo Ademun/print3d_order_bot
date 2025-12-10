@@ -75,10 +75,126 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		return
 	}
 
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderID, state.Data)
+	newData, ok := state.Data.(*fsm.OrderData)
+	if !ok {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	if len(ids) == 0 {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.EmptyOrderListMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	newData.OrdersIDs = ids
+	newData.CurrentIdx = 0
+
+	order, err := b.orderService.GetOrderByID(ctx, ids[0])
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSelectSliderAction, state.Data)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 		Text:      presentation.AskOrderSelectionMsg(),
+		ParseMode: models.ParseModeMarkdown,
+	})
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
+		Text:        presentation.OrderViewMsg(order),
+		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(ids), 0),
+		ParseMode:   models.ParseModeMarkdown,
+	})
+}
+
+func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
+	if update.CallbackQuery == nil {
+		return
+	}
+	userID := update.CallbackQuery.From.ID
+
+	sliderAction := update.CallbackQuery.Data
+
+	newData, ok := state.Data.(*fsm.OrderData)
+	if !ok {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	switch sliderAction {
+	case "previous":
+		if newData.CurrentIdx > 0 {
+			newData.CurrentIdx--
+		}
+	case "next":
+		if newData.CurrentIdx < len(newData.OrdersIDs)-1 {
+			newData.CurrentIdx++
+		}
+	case "select":
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		if err := b.orderService.AddFilesToOrder(ctx, newData.OrdersIDs[newData.CurrentIdx], newData.Files); err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    userID,
+				Text:      presentation.GenericErrorMsg(),
+				ParseMode: models.ParseModeMarkdown,
+			})
+			return
+		}
+	default:
+		return
+	}
+
+	order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
+	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.GenericErrorMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
+	}
+
+	disablePreview := true
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSelectSliderAction, newData)
+	b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      userID,
+		MessageID:   update.CallbackQuery.Message.Message.ID,
+		Text:        presentation.OrderViewMsg(order),
+		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(newData.OrdersIDs), newData.CurrentIdx),
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &disablePreview,
+		},
 		ParseMode: models.ParseModeMarkdown,
 	})
 }

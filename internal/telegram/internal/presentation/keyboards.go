@@ -71,3 +71,29 @@ func OrderSliderMgmtKbd(total, currentIdx int, action OrderSliderAction) *models
 	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, sliderRow, controlRow)
 	return keyboard
 }
+
+func OrderSliderSelectorKbd(total, currentIdx int) *models.InlineKeyboardMarkup {
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{},
+	}
+	var sliderRow []models.InlineKeyboardButton
+	if currentIdx > 0 {
+		sliderRow = append(sliderRow, models.InlineKeyboardButton{
+			Text: "◀️", CallbackData: "previous",
+		})
+	}
+	sliderRow = append(sliderRow, models.InlineKeyboardButton{
+		Text: fmt.Sprintf("%d/%d", currentIdx+1, total), CallbackData: "noop",
+	})
+	if currentIdx < total-1 {
+		sliderRow = append(sliderRow, models.InlineKeyboardButton{
+			Text: "▶️", CallbackData: "next",
+		})
+	}
+	var controlRow []models.InlineKeyboardButton
+	controlRow = append(controlRow, models.InlineKeyboardButton{
+		Text: "Выбрать", CallbackData: "select",
+	})
+	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, sliderRow, controlRow)
+	return keyboard
+}

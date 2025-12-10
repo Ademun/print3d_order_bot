@@ -44,11 +44,12 @@ func (b *Bot) Start(ctx context.Context) {
 
 	b.router.SetAttachmentHandler(b.handleOrderCreation)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderType, b.handleOrderType)
+	b.router.RegisterHandler(fsm.StepAwaitingOrderSelectSliderAction, b.handleOrderSelectorAction)
 	b.router.RegisterHandler(fsm.StepAwaitingClientName, b.handleClientName)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderCost, b.handleOrderCost)
 	b.router.RegisterHandler(fsm.StepAwaitingOrderComments, b.handleOrderComments)
 	b.router.RegisterHandler(fsm.StepAwaitingNewOrderConfirmation, b.handleNewOrderConfirmation)
-	b.router.RegisterHandler(fsm.StepAwaitingOrderSliderAction, b.handleOrderViewAction)
+	b.router.RegisterHandler(fsm.StepAwaitingOrderViewSliderAction, b.handleOrderViewAction)
 
 	slog.Info("Started Telegram Bot")
 	go b.api.Start(ctx)

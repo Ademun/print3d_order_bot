@@ -49,7 +49,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 	}
 
 	disablePreview := true
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderViewSliderAction, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      userID,
 		Text:        presentation.OrderViewMsg(order),
@@ -127,7 +127,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 	action := extractOrderAction(order.OrderStatus)
 
 	disablePreview := true
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSliderAction, newData)
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderViewSliderAction, newData)
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      userID,
 		MessageID:   update.CallbackQuery.Message.Message.ID,
