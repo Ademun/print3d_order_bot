@@ -37,8 +37,8 @@ func NewDefaultService(orderService order.Service, fileService file.Service, cfg
 }
 
 func (d *DefaultService) Start(ctx context.Context) {
-	d.wg.Add(1)
 	d.startReconciliationLoop(ctx)
+	slog.Info("Started reconciler service")
 }
 
 func (d *DefaultService) Stop(ctx context.Context) error {
@@ -59,15 +59,18 @@ func (d *DefaultService) Stop(ctx context.Context) error {
 func (d *DefaultService) startReconciliationLoop(ctx context.Context) {
 	ticker := time.Tick(time.Hour)
 
-	for {
-		select {
-		case <-ctx.Done():
-			d.wg.Done()
-			return
-		case <-ticker:
-			d.runGlobalReconciliation(ctx)
+	d.wg.Add(1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				d.wg.Done()
+				return
+			case <-ticker:
+				d.runGlobalReconciliation(ctx)
+			}
 		}
-	}
+	}()
 }
 
 func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {

@@ -13,6 +13,7 @@ type Config struct {
 	DB          DBConfig
 	FileService FileServiceCfg `yaml:"file_service"`
 	TelegramCfg TelegramCfg    `yaml:"telegram"`
+	MTProtoCfg  MTProtoCfg
 }
 
 type DBConfig struct {
@@ -25,6 +26,12 @@ type FileServiceCfg struct {
 
 type TelegramCfg struct {
 	Token string `env:"TOKEN,required"`
+}
+
+type MTProtoCfg struct {
+	AppID   int    `env:"APP_ID,required"`
+	AppHash string `env:"APP_HASH,required"`
+	Token   string `env:"TOKEN,required"`
 }
 
 func Load(configPath string) (*Config, error) {

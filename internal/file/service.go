@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/pkg/model"
-	"strings"
 	"sync"
 )
 
 type Service interface {
 	CreateFolder(folderPath string) error
 	DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error
+	GetFiles(ctx context.Context, folderPath string) (chan model.FileResult, error)
 	DeleteFolder(folderPath string) error
 	SetDownloader(downloader Downloader)
 }
@@ -22,6 +22,7 @@ type Service interface {
 type DefaultService struct {
 	downloader Downloader
 	cfg        *config.FileServiceCfg
+	wg         sync.WaitGroup
 }
 
 func NewDefaultService(downloader Downloader, cfg *config.FileServiceCfg) Service {
@@ -70,63 +71,77 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 	defer func() { <-sem }()
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.FileName)
 
-	if file.TGFileID == nil {
-		if file.FileBody == nil {
-			errChan <- FailedFile{
-				Filename: file.FileName,
-				Err:      fmt.Errorf("unexpected empty file body for file with no telegram ID"),
-			}
-			return
+	dst, err := d.prepareFilepath(filePath)
+	if err != nil {
+		errChan <- FailedFile{
+			Filename: file.FileName,
+			Err:      err,
 		}
-
-		fs := io.NopCloser(strings.NewReader(*file.FileBody))
-		err := d.saveFile(filePath, fs)
-		if err != nil {
-			errChan <- FailedFile{
-				Filename: file.FileName,
-				Err:      err,
-			}
-		}
-		return
 	}
 
-	fs, err := d.downloader.DownloadFile(ctx, *file.TGFileID)
+	err = d.downloader.DownloadFile(ctx, *file.TGFileID, dst)
 	if err != nil {
 		errChan <- FailedFile{
 			Filename: file.FileName,
 			Err:      err,
 		}
 		return
-	}
-
-	err = d.saveFile(filePath, fs)
-	if err != nil {
-		errChan <- FailedFile{
-			Filename: file.FileName,
-			Err:      err,
-		}
 	}
 }
 
-func (d *DefaultService) saveFile(filePath string, fs io.ReadCloser) error {
-	defer closeFileStream()(fs)
-
+func (d *DefaultService) prepareFilepath(filePath string) (io.Writer, error) {
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return err
+		return nil, err
 	}
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		out, err := os.Create(filePath)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		defer closeFile()(out)
 
-		_, err = io.Copy(out, fs)
-		return err
+		return out, err
 	}
 
-	return fmt.Errorf("file already exists: %s", filePath)
+	return nil, fmt.Errorf("file already exists: %s", filePath)
+}
+
+func (d *DefaultService) GetFiles(ctx context.Context, folderPath string) (chan model.FileResult, error) {
+	d.wg.Add(1)
+	defer d.wg.Done()
+
+	path := filepath.Join(d.cfg.DirPath, folderPath)
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make(chan model.FileResult)
+	wg := sync.WaitGroup{}
+
+	go func() {
+		for _, entry := range entries {
+			wg.Add(1)
+			go func(entry os.DirEntry) {
+				defer wg.Done()
+
+				if entry.IsDir() {
+					return
+				}
+
+				file, err := os.Open(filepath.Join(path, entry.Name()))
+
+				files <- model.FileResult{
+					File: file,
+					Err:  err,
+				}
+			}(entry)
+		}
+		wg.Wait()
+		close(files)
+	}()
+
+	return files, nil
 }
 
 func (d *DefaultService) DeleteFolder(folderPath string) error {

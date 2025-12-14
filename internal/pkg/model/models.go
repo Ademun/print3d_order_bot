@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 type TGOrder struct {
 	ClientName string
@@ -35,4 +38,9 @@ type TGOrderFile struct {
 	FileName string
 	FileBody *string
 	TGFileID *string
+}
+
+type FileResult struct {
+	File io.ReadCloser
+	Err  error
 }

@@ -39,6 +39,7 @@ func (r *Router) RegisterHandler(step ConversationStep, handler HandlerFunc) {
 
 func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		slog.Info("upd", update.Message)
 		var userID int64
 		if update.Message != nil {
 			userID = update.Message.From.ID

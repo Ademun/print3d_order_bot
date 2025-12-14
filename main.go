@@ -4,10 +4,10 @@ import (
 	"context"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"print3d-order-bot/internal/file"
+	"print3d-order-bot/internal/mtproto"
 	"print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/reconciler"
@@ -37,16 +37,18 @@ func main() {
 	orderRepo := order.NewDefaultRepo(pool)
 	orderService := order.NewDefaultService(orderRepo, fileService)
 
-	bot, api, err := telegram.NewBot(orderService, &cfg.TelegramCfg)
+	bot, err := telegram.NewBot(orderService, &cfg.TelegramCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	bot.Start(ctx)
 
-	httpClient := &http.Client{
-		Timeout: time.Second * 10,
+	mtprotoClient, err := mtproto.NewClient(ctx, &cfg.MTProtoCfg)
+	if err != nil {
+		log.Fatal(err)
 	}
-	downloader := file.NewTelegramDownloader(api, httpClient)
+
+	downloader := file.NewMTProtoDownloader(mtprotoClient)
 	fileService.SetDownloader(downloader)
 
 	reconcilerService := reconciler.NewDefaultService(orderService, fileService, &cfg.FileService)

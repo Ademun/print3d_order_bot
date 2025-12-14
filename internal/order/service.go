@@ -71,10 +71,22 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 }
 
 func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.TGOrderFile) error {
+	order, err := d.repo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		slog.Error("Error getting order", "error", err)
+		return err
+	}
+
+	if err := d.fileService.DownloadAndSave(ctx, order.FolderPath, files); err != nil {
+		slog.Error("Error creating new order", "error", err)
+		return err
+	}
+
 	if err := d.repo.NewOrderFiles(ctx, orderID, files); err != nil {
 		slog.Error("Error adding files to order", "error", err, "orderID", orderID)
 		return err
 	}
+
 	return nil
 }
 

@@ -20,14 +20,14 @@ type Bot struct {
 	collector    *media.Collector
 }
 
-func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, *bot.Bot, error) {
+func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, error) {
 	state := fsm.NewFSM()
 	router := fsm.NewRouter(state)
 	collector := media.NewCollector()
 	botOpts := []bot.Option{bot.WithMiddlewares(router.Middleware)}
 	b, err := bot.New(cfg.Token, botOpts...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create bot instance: %w", err)
+		return nil, fmt.Errorf("failed to create bot instance: %w", err)
 	}
 
 	return &Bot{
@@ -35,7 +35,7 @@ func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, *bot.Bot
 		api:          b,
 		router:       router,
 		collector:    collector,
-	}, b, nil
+	}, nil
 }
 
 func (b *Bot) Start(ctx context.Context) {

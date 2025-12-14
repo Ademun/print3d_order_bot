@@ -170,6 +170,12 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 			})
 			return
 		}
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.AddedDataToOrderMsg(),
+			ParseMode: models.ParseModeMarkdown,
+		})
+		return
 	default:
 		return
 	}
