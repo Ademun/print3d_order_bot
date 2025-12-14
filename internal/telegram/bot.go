@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"print3d-order-bot/internal/file"
+	"print3d-order-bot/internal/mtproto"
 	"print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/telegram/internal/fsm"
@@ -14,13 +16,15 @@ import (
 )
 
 type Bot struct {
-	orderService order.Service
-	api          *bot.Bot
-	router       *fsm.Router
-	collector    *media.Collector
+	orderService  order.Service
+	fileService   file.Service
+	api           *bot.Bot
+	mtprotoClient *mtproto.Client
+	router        *fsm.Router
+	collector     *media.Collector
 }
 
-func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, error) {
+func NewBot(orderService order.Service, fileService file.Service, mtprotoClient *mtproto.Client, cfg *config.TelegramCfg) (*Bot, error) {
 	state := fsm.NewFSM()
 	router := fsm.NewRouter(state)
 	collector := media.NewCollector()
@@ -31,10 +35,12 @@ func NewBot(orderService order.Service, cfg *config.TelegramCfg) (*Bot, error) {
 	}
 
 	return &Bot{
-		orderService: orderService,
-		api:          b,
-		router:       router,
-		collector:    collector,
+		orderService:  orderService,
+		fileService:   fileService,
+		api:           b,
+		mtprotoClient: mtprotoClient,
+		router:        router,
+		collector:     collector,
 	}, nil
 }
 

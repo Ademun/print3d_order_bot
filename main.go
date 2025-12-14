@@ -37,12 +37,6 @@ func main() {
 	orderRepo := order.NewDefaultRepo(pool)
 	orderService := order.NewDefaultService(orderRepo, fileService)
 
-	bot, err := telegram.NewBot(orderService, &cfg.TelegramCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bot.Start(ctx)
-
 	mtprotoClient, err := mtproto.NewClient(ctx, &cfg.MTProtoCfg)
 	if err != nil {
 		log.Fatal(err)
@@ -53,6 +47,12 @@ func main() {
 
 	reconcilerService := reconciler.NewDefaultService(orderService, fileService, &cfg.FileService)
 	reconcilerService.Start(ctx)
+
+	bot, err := telegram.NewBot(orderService, fileService, mtprotoClient, &cfg.TelegramCfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bot.Start(ctx)
 
 	<-ctx.Done()
 	slog.Info("Shutting down...")
