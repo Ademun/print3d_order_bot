@@ -13,9 +13,7 @@ import (
 )
 
 type Repo interface {
-	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.File) (string, pgx.Tx, error)
-	NewOrderCloseTX(ctx context.Context, tx pgx.Tx) error
-	NewOrderRollbackTX(ctx context.Context, tx pgx.Tx) error
+	NewOrder(ctx context.Context, order DBOrder, files []DBFile) error
 	NewOrderFiles(ctx context.Context, orderID int, files []model.File) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
@@ -38,80 +36,74 @@ func NewDefaultRepo(pool *pgxpool.Pool) Repo {
 	}
 }
 
-func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.File) (string, pgx.Tx, error) {
+func (d *DefaultRepo) NewOrder(ctx context.Context, order DBOrder, files []DBFile) error {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
-		return "", nil,
-			&pkg.ErrDBProcedure{
-				Cause: "failed to begin transaction",
-				Info:  "NewOrderOpenTx",
-				Err:   err,
-			}
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to begin transaction",
+			Info:  "NewOrder",
+			Err:   err,
+		}
 	}
 
 	orderID, err := d.insertOrder(ctx, order, tx)
 	if err != nil {
-		return "", nil, err
-	}
-
-	path := createFolderPath(order.ClientName, order.CreatedAt, orderID)
-	stmt := d.builder.Update("orders").
-		Set("folder_path", path).
-		Where(squirrel.Eq{"order_id": orderID})
-	query, args, err := stmt.ToSql()
-	if err != nil {
-		return "", nil, &pkg.ErrDBProcedure{
-			Cause: "failed to build query",
-			Info:  "NewOrderOpenTx",
-			Err:   err,
-		}
-	}
-
-	if _, err := tx.Exec(ctx, query, args...); err != nil {
-		if err := tx.Rollback(ctx); err != nil {
-			return "", nil,
-				&pkg.ErrDBProcedure{
-					Cause: "failed to rollback transaction",
-					Info:  "NewOrderOpenTx",
-					Err:   err,
-				}
-		}
-		return "", nil,
-			&pkg.ErrDBProcedure{
-				Cause: "failed to execute query",
-				Info:  fmt.Sprintf("NewOrderOpenTx; query: %s", query),
-				Err:   err,
-			}
-	}
-
-	if len(files) == 0 {
-		return path, tx, nil
+		return err
 	}
 
 	builder := d.builder.Insert("order_files").
-		Columns("file_name", "tg_file_id", "order_id")
+		Columns("name", "checksum", "tg_file_id", "order_id")
 	for _, file := range files {
-		builder = builder.Values(file.Name, file.TGFileID, orderID)
+		builder = builder.Values(file.Name, file.Checksum, file.TgFileID, orderID)
 	}
-	query, args, err = builder.ToSql()
+	query, args, err := builder.ToSql()
 	if err != nil {
-		return "", nil, &pkg.ErrDBProcedure{
+		tx.Rollback(ctx)
+		return &pkg.ErrDBProcedure{
 			Cause: "failed to build query",
-			Info:  "NewOrderOpenTx",
+			Info:  "NewOrder",
 			Err:   err,
 		}
 	}
 
 	if _, err := tx.Exec(ctx, query, args...); err != nil {
-		return "", nil,
-			&pkg.ErrDBProcedure{
-				Cause: "failed to insert file data",
-				Info:  fmt.Sprintf("NewOrderOpenTx; query: %s", query),
-				Err:   err,
-			}
+		tx.Rollback(ctx)
+		return &pkg.ErrDBProcedure{
+			Cause: "failed to insert file data",
+			Info:  fmt.Sprintf("NewOrderOpenTx; query: %s", query),
+			Err:   err,
+		}
 	}
 
-	return path, tx, nil
+	return nil
+}
+
+func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, tx pgx.Tx) (int, error) {
+	stmt := d.builder.Insert("orders").
+		Columns("order_status, client_name, cost, comments, contacts, links, created_at, folder_path").
+		Values(order.OrderStatus, order.ClientName, order.Cost, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
+		Suffix("returning order_id")
+	query, args, err := stmt.ToSql()
+	if err != nil {
+		tx.Rollback(ctx)
+		return 0, &pkg.ErrDBProcedure{
+			Cause: "failed to build query",
+			Info:  "InsertOrder",
+			Err:   err,
+		}
+	}
+
+	var orderID int
+	if err := tx.QueryRow(ctx, query, args...).Scan(&orderID); err != nil {
+		tx.Rollback(ctx)
+		return 0, &pkg.ErrDBProcedure{
+			Cause: "failed to insert order",
+			Info:  fmt.Sprintf("InsertOrder; query: %s", query),
+			Err:   err,
+		}
+	}
+
+	return orderID, nil
 }
 
 func (d *DefaultRepo) NewOrderCloseTX(ctx context.Context, tx pgx.Tx) error {
@@ -390,30 +382,4 @@ func (d *DefaultRepo) DeleteOrderFiles(ctx context.Context, orderID int, filenam
 		}
 	}
 	return nil
-}
-
-func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, tx pgx.Tx) (int, error) {
-	stmt := d.builder.Insert("orders").
-		Columns("order_status, client_name, cost, comments, contacts, links, created_at, folder_path").
-		Values(order.OrderStatus, order.ClientName, order.Cost, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
-		Suffix("returning order_id")
-	query, args, err := stmt.ToSql()
-	if err != nil {
-		return 0, &pkg.ErrDBProcedure{
-			Cause: "failed to build query",
-			Info:  "InsertOrder",
-			Err:   err,
-		}
-	}
-
-	var orderID int
-	if err := tx.QueryRow(ctx, query, args...).Scan(&orderID); err != nil {
-		return 0, &pkg.ErrDBProcedure{
-			Cause: "failed to insert order",
-			Info:  fmt.Sprintf("InsertOrder; query: %s", query),
-			Err:   err,
-		}
-	}
-
-	return orderID, nil
 }
