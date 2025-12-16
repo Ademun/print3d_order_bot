@@ -13,7 +13,7 @@ import (
 
 type Service interface {
 	CreateFolder(folderPath string) error
-	DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error
+	DownloadAndSave(ctx context.Context, folderPath string, files []model.File) error
 	GetFiles(ctx context.Context, folderPath string) (chan model.FileResult, error)
 	DeleteFolder(folderPath string) error
 	SetDownloader(downloader Downloader)
@@ -37,7 +37,7 @@ func (d *DefaultService) CreateFolder(folderPath string) error {
 	return os.MkdirAll(path, os.ModePerm)
 }
 
-func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.TGOrderFile) error {
+func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.File) error {
 	wg := sync.WaitGroup{}
 	errChan := make(chan FailedFile, len(files))
 	// TODO: research optimal value and make it configurable
@@ -66,23 +66,31 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	return nil
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.TGOrderFile, sem chan struct{}, wg *sync.WaitGroup, errChan chan FailedFile) {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.File, sem chan struct{}, wg *sync.WaitGroup, errChan chan FailedFile) {
 	defer wg.Done()
 	defer func() { <-sem }()
-	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.FileName)
+	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
 
 	dst, err := d.prepareFilepath(filePath)
 	if err != nil {
 		errChan <- FailedFile{
-			Filename: file.FileName,
+			Filename: file.Name,
 			Err:      err,
 		}
+	}
+
+	if file.TGFileID == nil {
+		errChan <- FailedFile{
+			Filename: file.Name,
+			Err:      fmt.Errorf("file %s has no TGFileID", file.Name),
+		}
+		return
 	}
 
 	err = d.downloader.DownloadFile(ctx, *file.TGFileID, dst)
 	if err != nil {
 		errChan <- FailedFile{
-			Filename: file.FileName,
+			Filename: file.Name,
 			Err:      err,
 		}
 		return
@@ -132,8 +140,9 @@ func (d *DefaultService) GetFiles(ctx context.Context, folderPath string) (chan 
 				file, err := os.Open(filepath.Join(path, entry.Name()))
 
 				files <- model.FileResult{
-					File: file,
-					Err:  err,
+					Filename: entry.Name(),
+					File:     file,
+					Err:      err,
 				}
 			}(entry)
 		}

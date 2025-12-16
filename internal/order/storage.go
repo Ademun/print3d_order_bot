@@ -13,10 +13,10 @@ import (
 )
 
 type Repo interface {
-	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.TGOrderFile) (string, pgx.Tx, error)
+	NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.File) (string, pgx.Tx, error)
 	NewOrderCloseTX(ctx context.Context, tx pgx.Tx) error
 	NewOrderRollbackTX(ctx context.Context, tx pgx.Tx) error
-	NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error
+	NewOrderFiles(ctx context.Context, orderID int, files []model.File) error
 	GetOrders(ctx context.Context, getActive bool) ([]DBOrder, error)
 	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
@@ -38,7 +38,7 @@ func NewDefaultRepo(pool *pgxpool.Pool) Repo {
 	}
 }
 
-func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.TGOrderFile) (string, pgx.Tx, error) {
+func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files []model.File) (string, pgx.Tx, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return "", nil,
@@ -91,7 +91,7 @@ func (d *DefaultRepo) NewOrderOpenTx(ctx context.Context, order DBOrder, files [
 	builder := d.builder.Insert("order_files").
 		Columns("file_name", "tg_file_id", "order_id")
 	for _, file := range files {
-		builder = builder.Values(file.FileName, file.TGFileID, orderID)
+		builder = builder.Values(file.Name, file.TGFileID, orderID)
 	}
 	query, args, err = builder.ToSql()
 	if err != nil {
@@ -143,11 +143,11 @@ func (d *DefaultRepo) NewOrderRollbackTX(ctx context.Context, tx pgx.Tx) error {
 	return nil
 }
 
-func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.TGOrderFile) error {
+func (d *DefaultRepo) NewOrderFiles(ctx context.Context, orderID int, files []model.File) error {
 	builder := d.builder.Insert("order_files").
 		Columns("file_name", "tg_file_id", "order_id")
 	for _, file := range files {
-		builder = builder.Values(file.FileName, file.TGFileID, orderID)
+		builder = builder.Values(file.Name, file.TGFileID, orderID)
 	}
 	query, args, err := builder.ToSql()
 	if err != nil {

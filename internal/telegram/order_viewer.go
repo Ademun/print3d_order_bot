@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"fmt"
 	"print3d-order-bot/internal/pkg/model"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/presentation"
@@ -69,6 +70,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 	userID := update.CallbackQuery.From.ID
+	messageID := update.CallbackQuery.Message.Message.ID
 
 	sliderAction := update.CallbackQuery.Data
 
@@ -110,6 +112,47 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			})
 			return
 		}
+	case "files":
+		order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
+		if err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    userID,
+				Text:      presentation.GenericErrorMsg(),
+				ParseMode: models.ParseModeMarkdown,
+			})
+			return
+		}
+		files, err := b.fileService.GetFiles(ctx, order.FolderPath)
+		if err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    userID,
+				Text:      presentation.GenericErrorMsg(),
+				ParseMode: models.ParseModeMarkdown,
+			})
+			return
+		}
+
+		filenamesFiles := make(map[string]model.File)
+		for _, file := range order.Files {
+			filenamesFiles[file.Name] = file
+		}
+
+		for f := range files {
+			orderFile, ok := filenamesFiles[f.Filename]
+
+			if !ok || orderFile.Checksum != f.Checksum {
+				if err := b.mtprotoClient.UploadFile(ctx, f.Filename, f.File, messageID, userID); err != nil {
+					fmt.Println(err)
+					b.SendMessage(ctx, &bot.SendMessageParams{
+						ChatID:    userID,
+						Text:      presentation.GenericErrorMsg(),
+						ParseMode: models.ParseModeMarkdown,
+					})
+				}
+				continue
+			}
+		}
+		return
 	default:
 		return
 	}

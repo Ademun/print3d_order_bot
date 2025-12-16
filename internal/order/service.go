@@ -9,8 +9,8 @@ import (
 )
 
 type Service interface {
-	NewOrder(ctx context.Context, order model.TGOrder, files []model.TGOrderFile) error
-	AddFilesToOrder(ctx context.Context, orderID int, files []model.TGOrderFile) error
+	NewOrder(ctx context.Context, order model.TGOrder, files []model.File) error
+	AddFilesToOrder(ctx context.Context, orderID int, files []model.File) error
 	GetOrderFilenames(ctx context.Context, orderID int) ([]string, error)
 	GetActiveOrders(ctx context.Context) ([]model.Order, error)
 	GetActiveOrdersIDs(ctx context.Context) ([]int, error)
@@ -32,7 +32,7 @@ func NewDefaultService(repo Repo, fileService file.Service) Service {
 	}
 }
 
-func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.TGOrderFile) error {
+func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.File) error {
 	dbOrder := DBOrder{
 		OrderStatus: model.StatusActive,
 		ClientName:  order.ClientName,
@@ -70,7 +70,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, file
 	return nil
 }
 
-func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.TGOrderFile) error {
+func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.File) error {
 	order, err := d.repo.GetOrderByID(ctx, orderID)
 	if err != nil {
 		slog.Error("Error getting order", "error", err)
@@ -111,13 +111,6 @@ func (d *DefaultService) GetActiveOrders(ctx context.Context) ([]model.Order, er
 
 	orders := make([]model.Order, len(dbOrders))
 	for i, dbOrder := range dbOrders {
-		files, err := d.repo.GetOrderFiles(ctx, dbOrder.OrderID)
-		if err != nil {
-			slog.Error(err.Error())
-			return nil, err
-		}
-
-		filenames := getFilenames(files)
 		orders[i] = model.Order{
 			OrderID:     dbOrder.OrderID,
 			OrderStatus: dbOrder.OrderStatus,
@@ -126,7 +119,7 @@ func (d *DefaultService) GetActiveOrders(ctx context.Context) ([]model.Order, er
 			CreatedAt:   dbOrder.CreatedAt,
 			ClosedAt:    dbOrder.ClosedAt,
 			FolderPath:  dbOrder.FolderPath,
-			Filenames:   filenames,
+			Files:       []model.File{},
 		}
 	}
 
@@ -148,14 +141,6 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*model.
 		return nil, err
 	}
 
-	orderFiles, err := d.repo.GetOrderFiles(ctx, dbOrder.OrderID)
-	if err != nil {
-		slog.Error("Error retrieving order", "error", err, "orderID", orderID)
-		return nil, err
-	}
-
-	filenames := getFilenames(orderFiles)
-
 	order := &model.Order{
 		OrderID:     dbOrder.OrderID,
 		OrderStatus: dbOrder.OrderStatus,
@@ -167,7 +152,7 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*model.
 		CreatedAt:   dbOrder.CreatedAt,
 		ClosedAt:    dbOrder.ClosedAt,
 		FolderPath:  dbOrder.FolderPath,
-		Filenames:   filenames,
+		Files:       []model.File{},
 	}
 
 	return order, nil

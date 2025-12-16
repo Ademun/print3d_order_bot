@@ -58,6 +58,9 @@ func OrderSliderMgmtKbd(total, currentIdx int, action OrderSliderAction) *models
 		})
 	}
 	var controlRow []models.InlineKeyboardButton
+	controlRow = append(controlRow, models.InlineKeyboardButton{
+		Text: "📁 Скачать файлы", CallbackData: "files",
+	})
 	switch action {
 	case OrderSliderClose:
 		controlRow = append(controlRow, models.InlineKeyboardButton{

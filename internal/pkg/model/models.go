@@ -20,6 +20,12 @@ const (
 	StatusClosed             = "closed"
 )
 
+type File struct {
+	Name     string
+	Checksum uint64
+	TGFileID *string
+}
+
 type Order struct {
 	OrderID     int
 	OrderStatus OrderStatus
@@ -31,16 +37,12 @@ type Order struct {
 	Links       []string
 	ClosedAt    *time.Time
 	FolderPath  string
-	Filenames   []string
-}
-
-type TGOrderFile struct {
-	FileName string
-	FileBody *string
-	TGFileID *string
+	Files       []File
 }
 
 type FileResult struct {
-	File io.ReadCloser
-	Err  error
+	Filename string
+	File     io.ReadCloser
+	Checksum uint64
+	Err      error
 }

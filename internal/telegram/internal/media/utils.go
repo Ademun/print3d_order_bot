@@ -55,8 +55,8 @@ func HasMedia(message *models.Message) bool {
 	return false
 }
 
-func ExtractMedia(message *models.Message) []model.TGOrderFile {
-	var result []model.TGOrderFile
+func ExtractMedia(message *models.Message) []model.File {
+	var result []model.File
 	dateStr := time.Now().Format("2006-01-02")
 
 	if message.Audio != nil {
@@ -65,15 +65,15 @@ func ExtractMedia(message *models.Message) []model.TGOrderFile {
 			ext := getExtFromMIME(message.Audio.MimeType)
 			fileName = fmt.Sprintf("audio_%s_%d%s", dateStr, message.ID, ext)
 		}
-		result = append(result, model.TGOrderFile{
-			FileName: fileName,
+		result = append(result, model.File{
+			Name:     fileName,
 			TGFileID: &message.Audio.FileID,
 		})
 	}
 
 	if message.Photo != nil && len(message.Photo) > 0 {
-		result = append(result, model.TGOrderFile{
-			FileName: fmt.Sprintf("photo_%s_%d.jpg", dateStr, message.ID),
+		result = append(result, model.File{
+			Name:     fmt.Sprintf("photo_%s_%d.jpg", dateStr, message.ID),
 			TGFileID: &message.Photo[len(message.Photo)-1].FileID,
 		})
 	}
@@ -84,8 +84,8 @@ func ExtractMedia(message *models.Message) []model.TGOrderFile {
 			ext := getExtFromMIME(message.Document.MimeType)
 			fileName = fmt.Sprintf("document_%s_%d%s", dateStr, message.ID, ext)
 		}
-		result = append(result, model.TGOrderFile{
-			FileName: fileName,
+		result = append(result, model.File{
+			Name:     fileName,
 			TGFileID: &message.Document.FileID,
 		})
 	}
@@ -96,23 +96,23 @@ func ExtractMedia(message *models.Message) []model.TGOrderFile {
 			ext := getExtFromMIME(message.Video.MimeType)
 			fileName = fmt.Sprintf("video_%s_%d%s", dateStr, message.ID, ext)
 		}
-		result = append(result, model.TGOrderFile{
-			FileName: fileName,
+		result = append(result, model.File{
+			Name:     fileName,
 			TGFileID: &message.Video.FileID,
 		})
 	}
 
 	if message.VideoNote != nil {
-		result = append(result, model.TGOrderFile{
-			FileName: fmt.Sprintf("video_note_%s_%d.mp4", dateStr, message.ID),
+		result = append(result, model.File{
+			Name:     fmt.Sprintf("video_note_%s_%d.mp4", dateStr, message.ID),
 			TGFileID: &message.VideoNote.FileID,
 		})
 	}
 
 	if message.Voice != nil {
 		ext := getExtFromMIME(message.Voice.MimeType)
-		result = append(result, model.TGOrderFile{
-			FileName: fmt.Sprintf("voice_%s_%d%s", dateStr, message.ID, ext),
+		result = append(result, model.File{
+			Name:     fmt.Sprintf("voice_%s_%d%s", dateStr, message.ID, ext),
 			TGFileID: &message.Voice.FileID,
 		})
 	}

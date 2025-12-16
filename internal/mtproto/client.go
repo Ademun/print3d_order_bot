@@ -46,8 +46,8 @@ func NewClient(ctx context.Context, cfg *config.MTProtoCfg) (*Client, error) {
 			}
 
 			api := tg.NewClient(mtprotoClient)
-			u := uploader.NewUploader(api)
-			d := downloader.NewDownloader()
+			u := uploader.NewUploader(api).WithPartSize(524288)
+			d := downloader.NewDownloader().WithPartSize(524288)
 			s := message.NewSender(api)
 
 			client.api = api
@@ -79,18 +79,19 @@ func NewClient(ctx context.Context, cfg *config.MTProtoCfg) (*Client, error) {
 }
 
 func (c *Client) UploadFile(ctx context.Context, filename string, file io.ReadCloser, msgID int, userID int64) error {
+	fmt.Println(filename)
 	defer file.Close()
 	upload, err := c.uploader.FromReader(ctx, filename, file)
 	if err != nil {
 		return err
 	}
+	fmt.Println(upload.String())
 
-	document := message.UploadedDocument(upload)
+	document := message.UploadedDocument(upload).Filename(filename)
 
-	peer := &tg.InputPeerUserFromMessage{
-		Peer:   &tg.InputPeerSelf{},
-		MsgID:  msgID,
-		UserID: userID,
+	peer := &tg.InputPeerUser{
+		UserID:     userID,
+		AccessHash: 0,
 	}
 
 	if _, err := c.sender.To(peer).Media(ctx, document); err != nil {
