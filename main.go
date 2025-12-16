@@ -32,18 +32,16 @@ func main() {
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, pgconfig)
 
-	fileService := file.NewDefaultService(nil, &cfg.FileService)
-
-	orderRepo := order.NewDefaultRepo(pool)
-	orderService := order.NewDefaultService(orderRepo, fileService)
-
 	mtprotoClient, err := mtproto.NewClient(ctx, &cfg.MTProtoCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	downloader := file.NewMTProtoDownloader(mtprotoClient)
-	fileService.SetDownloader(downloader)
+	fileService := file.NewDefaultService(downloader, &cfg.FileService)
+
+	orderRepo := order.NewDefaultRepo(pool)
+	orderService := order.NewDefaultService(orderRepo)
 
 	reconcilerService := reconciler.NewDefaultService(orderService, fileService, &cfg.FileService)
 	reconcilerService.Start(ctx)
