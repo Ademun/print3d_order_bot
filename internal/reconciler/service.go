@@ -5,11 +5,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"print3d-order-bot/internal/file"
-	"print3d-order-bot/internal/order"
+	fileSvc "print3d-order-bot/internal/file"
+	orderSvc "print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/pkg/config"
-	"print3d-order-bot/internal/pkg/model"
-	"slices"
 	"sync"
 	"time"
 )
@@ -21,13 +19,13 @@ type Service interface {
 }
 
 type DefaultService struct {
-	orderService order.Service
-	fileService  file.Service
+	orderService orderSvc.Service
+	fileService  fileSvc.Service
 	cfg          *config.FileServiceCfg
 	wg           *sync.WaitGroup
 }
 
-func NewDefaultService(orderService order.Service, fileService file.Service, cfg *config.FileServiceCfg) Service {
+func NewDefaultService(orderService orderSvc.Service, fileService fileSvc.Service, cfg *config.FileServiceCfg) Service {
 	return &DefaultService{
 		orderService: orderService,
 		fileService:  fileService,
@@ -74,27 +72,32 @@ func (d *DefaultService) startReconciliationLoop(ctx context.Context) {
 }
 
 func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {
-	orders, err := d.orderService.GetActiveOrders(ctx)
+	orderIDs, err := d.orderService.GetActiveOrdersIDs(ctx)
 	if err != nil {
 		slog.Error(err.Error())
 	}
 
 	wg := sync.WaitGroup{}
 	sem := make(chan struct{}, 10)
-	for _, ord := range orders {
+	for _, id := range orderIDs {
 		sem <- struct{}{}
 		wg.Add(1)
-		go func(o model.Order) {
+		go func(id int) {
 			defer wg.Done()
-			d.ReconcileOrder(ctx, o.OrderID)
+			d.ReconcileOrder(ctx, id)
 			<-sem
-		}(ord)
+		}(id)
 	}
 	wg.Wait()
 
-	validFolders := make([]string, len(orders))
-	for i, ord := range orders {
-		validFolders[i] = ord.FolderPath
+	validFolders, err := d.orderService.GetActiveOrdersFolders(ctx)
+	if err != nil {
+		slog.Error(err.Error())
+	}
+
+	validFoldersMap := make(map[string]struct{})
+	for _, folder := range validFolders {
+		validFoldersMap[folder] = struct{}{}
 	}
 
 	entries, err := os.ReadDir(d.cfg.DirPath)
@@ -103,9 +106,13 @@ func (d *DefaultService) runGlobalReconciliation(ctx context.Context) {
 	}
 
 	for _, dirEntry := range entries {
-		if !slices.Contains(validFolders, dirEntry.Name()) {
+		if !dirEntry.IsDir() {
+			continue
+		}
+
+		if _, ok := validFoldersMap[dirEntry.Name()]; !ok {
 			path := filepath.Join(d.cfg.DirPath, dirEntry.Name())
-			if err := os.RemoveAll(path); err != nil {
+			if err := d.fileService.DeleteFolder(path); err != nil {
 				slog.Error(err.Error())
 			}
 		}
@@ -118,49 +125,66 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 		slog.Error(err.Error())
 		return
 	}
-	orderFilenames, err := d.orderService.GetOrderFilenames(ctx, order.OrderID)
+
+	orderFilesMap := make(map[string]orderSvc.File)
+	for _, file := range order.Files {
+		orderFilesMap[file.Name] = file
+	}
+
+	files, err := d.fileService.ReadFiles(order.FolderPath)
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
 
-	path := filepath.Join(d.cfg.DirPath, order.FolderPath)
-	dirFiles, err := os.ReadDir(path)
-	if err != nil {
-		slog.Error(err.Error())
-		return
-	}
+	var removedFiles []string
+	var newFiles []orderSvc.File
+	var updatedFiles []orderSvc.File
 
-	actualFilenames := make([]string, len(dirFiles))
-	for i, file := range dirFiles {
-		actualFilenames[i] = file.Name()
-	}
+	filesMap := make(map[string]fileSvc.ReadResult)
 
-	var newFiles []model.File
-	for _, filename := range actualFilenames {
-		if !slices.Contains(orderFilenames, filename) {
-			newFiles = append(newFiles, model.File{
-				Name: filename,
+	for file := range files {
+		if file.Err != nil {
+			slog.Error(file.Err.Error())
+			continue
+		}
+
+		filesMap[file.Name] = file
+
+		orderFile, ok := orderFilesMap[file.Name]
+		if !ok {
+			newFiles = append(newFiles, orderSvc.File{
+				Name:     file.Name,
+				Checksum: file.Checksum,
 			})
+			continue
+		}
+
+		if file.Checksum != orderFile.Checksum {
+			updatedFiles = append(updatedFiles, orderSvc.File{
+				Name:     file.Name,
+				Checksum: file.Checksum,
+			})
+			delete(orderFilesMap, file.Name)
+			continue
 		}
 	}
 
-	var removedFilenames []string
-	for _, filename := range orderFilenames {
-		if !slices.Contains(actualFilenames, filename) {
-			removedFilenames = append(removedFilenames, filename)
+	for name, _ := range orderFilesMap {
+		if _, ok := filesMap[name]; !ok {
+			removedFiles = append(removedFiles, name)
 		}
 	}
 
-	if len(newFiles) > 0 {
-		if err := d.orderService.AddFilesToOrder(ctx, order.OrderID, newFiles); err != nil {
-			slog.Error(err.Error())
-		}
+	if err := d.orderService.RemoveOrderFiles(ctx, orderID, removedFiles); err != nil {
+		slog.Error(err.Error())
 	}
 
-	if len(removedFilenames) > 0 {
-		if err := d.orderService.RemoveOrderFiles(ctx, order.OrderID, removedFilenames); err != nil {
-			slog.Error(err.Error())
-		}
+	if err := d.orderService.AddFilesToOrder(ctx, orderID, newFiles); err != nil {
+		slog.Error(err.Error())
+	}
+
+	if err := d.orderService.UpdateOrderFiles(ctx, orderID, updatedFiles); err != nil {
+		slog.Error(err.Error())
 	}
 }
