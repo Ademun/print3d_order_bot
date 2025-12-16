@@ -2,8 +2,8 @@ create type order_status as enum ('active', 'closed');
 
 create table orders
 (
-    order_id     int primary key generated always as identity,
-    order_status order_status not null,
+    id     int primary key generated always as identity,
+    status order_status not null,
     client_name  text         not null,
     cost         real         not null,
     comments     text[] default '{}',
@@ -16,8 +16,9 @@ create table orders
 
 create table order_files
 (
-    file_name  text not null,
+    name  text not null,
+    checksum int not null,
     tg_file_id text,
     order_id   int  not null,
-    foreign key (order_id) references orders (order_id) on delete cascade
+    foreign key (order_id) references orders (id) on delete cascade
 );
