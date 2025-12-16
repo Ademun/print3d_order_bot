@@ -1,7 +1,6 @@
 package order
 
 import (
-	"print3d-order-bot/internal/pkg/model"
 	"time"
 )
 
@@ -21,9 +20,16 @@ type RequestOrder struct {
 	FolderPath string
 }
 
+type Status string
+
+const (
+	StatusActive Status = "active"
+	StatusClosed        = "closed"
+)
+
 type ResponseOrder struct {
 	ID         int
-	Status     model.OrderStatus
+	Status     Status
 	ClientName string
 	Cost       float32
 	Comments   []string
@@ -36,16 +42,16 @@ type ResponseOrder struct {
 }
 
 type DBOrder struct {
-	ID         int               `db:"id"`
-	Status     model.OrderStatus `db:"status"`
-	ClientName string            `db:"client_name"`
-	Cost       float32           `db:"cost"`
-	Comments   []string          `db:"comments"`
-	Contacts   []string          `db:"contacts"`
-	Links      []string          `db:"links"`
-	CreatedAt  time.Time         `db:"created_at"`
-	ClosedAt   *time.Time        `db:"closed_at"`
-	FolderPath string            `db:"folder_path"`
+	ID         int        `db:"id"`
+	Status     Status     `db:"status"`
+	ClientName string     `db:"client_name"`
+	Cost       float32    `db:"cost"`
+	Comments   []string   `db:"comments"`
+	Contacts   []string   `db:"contacts"`
+	Links      []string   `db:"links"`
+	CreatedAt  time.Time  `db:"created_at"`
+	ClosedAt   *time.Time `db:"closed_at"`
+	FolderPath string     `db:"folder_path"`
 }
 
 type DBFile struct {

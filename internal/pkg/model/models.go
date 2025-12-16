@@ -1,7 +1,6 @@
 package model
 
 import (
-	"io"
 	"time"
 )
 
@@ -38,11 +37,4 @@ type Order struct {
 	ClosedAt    *time.Time
 	FolderPath  string
 	Files       []File
-}
-
-type FileResult struct {
-	Filename string
-	File     io.ReadCloser
-	Checksum uint64
-	Err      error
 }
