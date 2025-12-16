@@ -13,10 +13,9 @@ import (
 
 type Service interface {
 	CreateFolder(folderPath string) error
-	DownloadAndSave(ctx context.Context, folderPath string, files []model.File) error
-	GetFiles(ctx context.Context, folderPath string) (chan model.FileResult, error)
+	DownloadAndSave(ctx context.Context, folderPath string, files []model.File) chan DownloadResult
+	ReadFiles(folderPath string) (chan ReadResult, error)
 	DeleteFolder(folderPath string) error
-	SetDownloader(downloader Downloader)
 }
 
 type DefaultService struct {
@@ -67,10 +66,13 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 
 func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.File, total int, counter *atomic.Int32, result chan DownloadResult) {
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
+	counter.Inc()
 
 	if file.TGFileID == nil {
 		result <- DownloadResult{
 			Result: nil,
+			Index:  int(counter.Load()),
+			Total:  total,
 			Err:    ErrNoTgFileID,
 		}
 		return
@@ -80,6 +82,8 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 	if err != nil {
 		result <- DownloadResult{
 			Result: nil,
+			Index:  int(counter.Load()),
+			Total:  total,
 			Err:    &ErrPrepareFilepath{Err: err},
 		}
 		return
@@ -95,6 +99,8 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 		}
 		result <- DownloadResult{
 			Result: nil,
+			Index:  int(counter.Load()),
+			Total:  total,
 			Err:    &ErrDownloadFailed{Err: err},
 		}
 	}
@@ -103,11 +109,12 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 	if err != nil {
 		result <- DownloadResult{
 			Result: nil,
+			Index:  int(counter.Load()),
+			Total:  total,
 			Err:    ErrCalculateChecksum,
 		}
 	}
 
-	counter.Inc()
 	result <- DownloadResult{
 		Result: &model.File{
 			Name:     file.Name,
@@ -120,43 +127,64 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 	}
 }
 
-func (d *DefaultService) GetFiles(ctx context.Context, folderPath string) (chan model.FileResult, error) {
-	d.wg.Add(1)
-	defer d.wg.Done()
+func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
+	dst := filepath.Join(d.cfg.DirPath, folderPath)
 
-	path := filepath.Join(d.cfg.DirPath, folderPath)
-	entries, err := os.ReadDir(path)
+	entries, err := os.ReadDir(dst)
 	if err != nil {
-		return nil, err
+		return nil, &ErrReadDir{Err: err}
 	}
 
-	files := make(chan model.FileResult)
+	result := make(chan ReadResult)
 	wg := sync.WaitGroup{}
+	sem := make(chan struct{}, 5)
 
+	d.wg.Add(1)
 	go func() {
+		defer d.wg.Done()
 		for _, entry := range entries {
 			wg.Add(1)
+			sem <- struct{}{}
 			go func(entry os.DirEntry) {
-				defer wg.Done()
+				defer func() {
+					<-sem
+					wg.Done()
+				}()
 
 				if entry.IsDir() {
 					return
 				}
 
-				file, err := os.Open(filepath.Join(path, entry.Name()))
+				path := filepath.Join(dst, entry.Name())
 
-				files <- model.FileResult{
-					Filename: entry.Name(),
-					File:     file,
-					Err:      err,
+				file, err := os.Open(path)
+				if err != nil {
+					result <- ReadResult{
+						Name: entry.Name(),
+						Err:  &ErrOpenFile{Err: err},
+					}
+				}
+
+				checksum, err := calculateChecksum(path)
+				if err != nil {
+					result <- ReadResult{
+						Name: entry.Name(),
+						Err:  ErrCalculateChecksum,
+					}
+				}
+
+				result <- ReadResult{
+					Name:     entry.Name(),
+					Body:     file,
+					Checksum: checksum,
 				}
 			}(entry)
 		}
 		wg.Wait()
-		close(files)
+		close(result)
 	}()
 
-	return files, nil
+	return result, nil
 }
 
 func (d *DefaultService) DeleteFolder(folderPath string) error {
