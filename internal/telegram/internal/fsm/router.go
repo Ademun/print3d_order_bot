@@ -15,6 +15,7 @@ type HandlerFunc func(ctx context.Context, api *bot.Bot, update *models.Update, 
 type Router struct {
 	fsm               *FSM
 	handlers          map[ConversationStep]HandlerFunc
+	pendingUsers      map[int64]string
 	attachmentHandler HandlerFunc
 	mu                *sync.RWMutex
 }
@@ -39,7 +40,6 @@ func (r *Router) RegisterHandler(step ConversationStep, handler HandlerFunc) {
 
 func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
-		slog.Info("upd", update.Message)
 		var userID int64
 		if update.Message != nil {
 			userID = update.Message.From.ID
@@ -66,14 +66,27 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 			return
 		}
 
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+
+		if msg, ok := r.pendingUsers[userID]; ok {
+			func(ctx context.Context, b *bot.Bot, update *models.Update) {
+				if _, err := b.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID:    userID,
+					Text:      msg,
+					ParseMode: models.ParseModeMarkdown,
+				}); err != nil {
+					slog.Error(err.Error())
+				}
+			}(ctx, b, update)
+		}
+
 		state, err := r.fsm.GetOrCreateState(userID)
 		if err != nil {
 			return
 		}
 
-		r.mu.RLock()
 		handler, exists := r.handlers[state.Step]
-		r.mu.RUnlock()
 
 		if exists {
 			handler(ctx, b, update, state)
@@ -106,4 +119,16 @@ func (r *Router) Transition(ctx context.Context, userID int64, nextStep Conversa
 		return err
 	}
 	return nil
+}
+
+func (r *Router) Freeze(userID int64, msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.pendingUsers[userID] = msg
+}
+
+func (r *Router) Unfreeze(userID int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.pendingUsers, userID)
 }
