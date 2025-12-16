@@ -9,15 +9,15 @@ import (
 )
 
 type Service interface {
-	NewOrder(ctx context.Context, order model.TGOrder, files []model.File) error
-	AddFilesToOrder(ctx context.Context, orderID int, files []model.File) error
+	NewOrder(ctx context.Context, order RequestOrder, files []File) error
+	AddFilesToOrder(ctx context.Context, orderID int, files []File) error
 	GetOrderFilenames(ctx context.Context, orderID int) ([]string, error)
-	GetActiveOrders(ctx context.Context) ([]model.Order, error)
 	GetActiveOrdersIDs(ctx context.Context) ([]int, error)
-	GetOrderByID(ctx context.Context, orderID int) (*model.Order, error)
+	GetOrderByID(ctx context.Context, orderID int) (*ResponseOrder, error)
 	CloseOrder(ctx context.Context, orderID int) error
 	RestoreOrder(ctx context.Context, orderID int) error
 	RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error
+	UpdateOrderFiles(ctx context.Context, orderID int, files []File) error
 }
 
 type DefaultService struct {
@@ -25,65 +25,53 @@ type DefaultService struct {
 	fileService file.Service
 }
 
-func NewDefaultService(repo Repo, fileService file.Service) Service {
+func NewDefaultService(repo Repo) Service {
 	return &DefaultService{
-		repo:        repo,
-		fileService: fileService,
+		repo: repo,
 	}
 }
 
-func (d *DefaultService) NewOrder(ctx context.Context, order model.TGOrder, files []model.File) error {
+func (d *DefaultService) NewOrder(ctx context.Context, order RequestOrder, files []File) error {
 	dbOrder := DBOrder{
-		OrderStatus: model.StatusActive,
-		ClientName:  order.ClientName,
-		Cost:        order.Cost,
-		Comments:    order.Comments,
-		Contacts:    order.Contacts,
-		Links:       order.Links,
-		CreatedAt:   time.Now(),
+		Status:     model.StatusActive,
+		ClientName: order.ClientName,
+		Cost:       order.Cost,
+		Comments:   order.Comments,
+		Contacts:   order.Contacts,
+		Links:      order.Links,
+		CreatedAt:  order.CreatedAt,
 	}
 
-	folderPath, tx, err := d.repo.NewOrderOpenTx(ctx, dbOrder, files)
-	if err != nil {
-		slog.Error("Error creating new order", "error", err)
-		return err
-	}
-
-	if err := d.fileService.CreateFolder(folderPath); err != nil {
-		slog.Error("Error creating new order", "error", err)
-		return err
-	}
-
-	if err := d.fileService.DownloadAndSave(ctx, folderPath, files); err != nil {
-		if err := d.repo.NewOrderRollbackTX(ctx, tx); err != nil {
-			slog.Error(err.Error())
-			return err
+	dbFiles := make([]DBFile, len(files))
+	for i, file := range files {
+		dbFiles[i] = DBFile{
+			Name:     file.Name,
+			Checksum: file.Checksum,
+			TgFileID: file.TgFileID,
 		}
-		slog.Error("Error creating new order", "error", err)
+	}
+
+	if err := d.repo.NewOrder(ctx, dbOrder, dbFiles); err != nil {
+		slog.Error("Failed to create new order", "error", err)
 		return err
 	}
 
-	if err := d.repo.NewOrderCloseTX(ctx, tx); err != nil {
-		slog.Error("Error creating new order", "error", err)
-		return err
-	}
 	return nil
 }
 
-func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []model.File) error {
-	order, err := d.repo.GetOrderByID(ctx, orderID)
-	if err != nil {
-		slog.Error("Error getting order", "error", err)
-		return err
+func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files []File) error {
+	dbFiles := make([]DBFile, len(files))
+	for i, file := range files {
+		dbFiles[i] = DBFile{
+			Name:     file.Name,
+			Checksum: file.Checksum,
+			TgFileID: file.TgFileID,
+			OrderID:  orderID,
+		}
 	}
 
-	if err := d.fileService.DownloadAndSave(ctx, order.FolderPath, files); err != nil {
-		slog.Error("Error creating new order", "error", err)
-		return err
-	}
-
-	if err := d.repo.NewOrderFiles(ctx, orderID, files); err != nil {
-		slog.Error("Error adding files to order", "error", err, "orderID", orderID)
+	if err := d.repo.AddFilesToOrder(ctx, orderID, dbFiles); err != nil {
+		slog.Error("Failed to add files to order", "error", err, "orderID", orderID)
 		return err
 	}
 
@@ -91,39 +79,13 @@ func (d *DefaultService) AddFilesToOrder(ctx context.Context, orderID int, files
 }
 
 func (d *DefaultService) GetOrderFilenames(ctx context.Context, orderID int) ([]string, error) {
-	dbFiles, err := d.repo.GetOrderFiles(ctx, orderID)
+	filenames, err := d.repo.GetOrderFilenames(ctx, orderID)
 	if err != nil {
-		slog.Error("Error retrieving order filenames", "error", err, "orderID", orderID)
+		slog.Error("Failed to retrieve order filenames", "error", err, "orderID", orderID)
 		return nil, err
 	}
-
-	filenames := getFilenames(dbFiles)
 
 	return filenames, nil
-}
-
-func (d *DefaultService) GetActiveOrders(ctx context.Context) ([]model.Order, error) {
-	dbOrders, err := d.repo.GetOrders(ctx, true)
-	if err != nil {
-		slog.Error("Error retrieving active orders", "error", err)
-		return nil, err
-	}
-
-	orders := make([]model.Order, len(dbOrders))
-	for i, dbOrder := range dbOrders {
-		orders[i] = model.Order{
-			OrderID:     dbOrder.OrderID,
-			OrderStatus: dbOrder.OrderStatus,
-			ClientName:  dbOrder.ClientName,
-			Cost:        dbOrder.Cost,
-			CreatedAt:   dbOrder.CreatedAt,
-			ClosedAt:    dbOrder.ClosedAt,
-			FolderPath:  dbOrder.FolderPath,
-			Files:       []model.File{},
-		}
-	}
-
-	return orders, nil
 }
 
 func (d *DefaultService) GetActiveOrdersIDs(ctx context.Context) ([]int, error) {
@@ -134,25 +96,40 @@ func (d *DefaultService) GetActiveOrdersIDs(ctx context.Context) ([]int, error) 
 	return ids, err
 }
 
-func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*model.Order, error) {
+func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*ResponseOrder, error) {
 	dbOrder, err := d.repo.GetOrderByID(ctx, orderID)
 	if err != nil {
 		slog.Error("Error retrieving order", "error", err, "orderID", orderID)
 		return nil, err
 	}
 
-	order := &model.Order{
-		OrderID:     dbOrder.OrderID,
-		OrderStatus: dbOrder.OrderStatus,
-		ClientName:  dbOrder.ClientName,
-		Cost:        dbOrder.Cost,
-		Comments:    dbOrder.Comments,
-		Contacts:    dbOrder.Contacts,
-		Links:       dbOrder.Links,
-		CreatedAt:   dbOrder.CreatedAt,
-		ClosedAt:    dbOrder.ClosedAt,
-		FolderPath:  dbOrder.FolderPath,
-		Files:       []model.File{},
+	dbFiles, err := d.repo.GetOrderFiles(ctx, orderID)
+	if err != nil {
+		slog.Error("Error retrieving order files", "error", err, "orderID", orderID)
+		return nil, err
+	}
+
+	files := make([]File, len(dbFiles))
+	for i, file := range dbFiles {
+		files[i] = File{
+			Name:     file.Name,
+			Checksum: file.Checksum,
+			TgFileID: file.TgFileID,
+		}
+	}
+
+	order := &ResponseOrder{
+		ID:         dbOrder.ID,
+		Status:     dbOrder.Status,
+		ClientName: dbOrder.ClientName,
+		Cost:       dbOrder.Cost,
+		Comments:   dbOrder.Comments,
+		Contacts:   dbOrder.Contacts,
+		Links:      dbOrder.Links,
+		CreatedAt:  dbOrder.CreatedAt,
+		ClosedAt:   dbOrder.ClosedAt,
+		FolderPath: dbOrder.FolderPath,
+		Files:      files,
 	}
 
 	return order, nil
@@ -187,5 +164,23 @@ func (d *DefaultService) RemoveOrderFiles(ctx context.Context, orderID int, file
 		slog.Error("Error removing order files", "error", err, "orderID", orderID)
 		return err
 	}
+	return nil
+}
+
+func (d *DefaultService) UpdateOrderFiles(ctx context.Context, orderID int, files []File) error {
+	dbFiles := make([]DBFile, len(files))
+	for i, file := range files {
+		dbFiles[i] = DBFile{
+			Name:     file.Name,
+			Checksum: file.Checksum,
+			TgFileID: file.TgFileID,
+		}
+	}
+
+	if err := d.repo.UpdateOrderFiles(ctx, orderID, dbFiles); err != nil {
+		slog.Error("Failed to update order files", "error", err, "orderID", orderID)
+		return err
+	}
+
 	return nil
 }
