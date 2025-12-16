@@ -16,6 +16,7 @@ type Repo interface {
 	NewOrder(ctx context.Context, order DBOrder, files []DBFile) error
 	AddFilesToOrder(ctx context.Context, orderID int, files []DBFile) error
 	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
+	GetOrdersFolders(ctx context.Context, getActive bool) ([]string, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
 	UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error
 	DeleteOrder(ctx context.Context, orderID int) error
@@ -179,6 +180,52 @@ func (d *DefaultRepo) GetOrdersIDs(ctx context.Context, getActive bool) ([]int, 
 	return ids, nil
 }
 
+func (d *DefaultRepo) GetOrdersFolders(ctx context.Context, getActive bool) ([]string, error) {
+	stmt := d.builder.Select("folder_path").From("orders").OrderBy("created_at")
+	if getActive {
+		stmt = stmt.Where(squirrel.Or{
+			squirrel.Eq{"status": model.StatusActive},
+			squirrel.And{
+				squirrel.NotEq{"closed_at": nil},
+				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
+			}})
+	}
+	query, args, err := stmt.ToSql()
+	if err != nil {
+		return nil, &pkg.ErrDBProcedure{
+			Cause: "failed to build query",
+			Info:  "GetOrdersFolders",
+			Err:   err,
+		}
+	}
+
+	rows, err := d.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil,
+			&pkg.ErrDBProcedure{
+				Cause: "failed to select orders",
+				Info:  fmt.Sprintf("GetOrdersFolders; query: %s", query),
+				Err:   err,
+			}
+	}
+	defer rows.Close()
+
+	var paths []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, &pkg.ErrDBProcedure{
+				Cause: "failed to scan row",
+				Info:  fmt.Sprintf("GetOrdersFolders; query: %s", query),
+				Err:   err,
+			}
+		}
+		paths = append(paths, path)
+	}
+
+	return paths, nil
+}
+
 func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error) {
 	stmt := d.builder.Select("*").From("orders").Where(squirrel.Eq{"id": orderID})
 	query, args, err := stmt.ToSql()
@@ -292,7 +339,7 @@ func (d *DefaultRepo) GetOrderFilenames(ctx context.Context, orderID int) ([]str
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to build query",
-			Info:  "GetOrderFiles",
+			Info:  "GetOrderFilenames",
 			Err:   err,
 		}
 	}
@@ -300,7 +347,7 @@ func (d *DefaultRepo) GetOrderFilenames(ctx context.Context, orderID int) ([]str
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order files",
-			Info:  fmt.Sprintf("GetOrderFiles; query: %s", query),
+			Info:  fmt.Sprintf("GetOrderFilenames; query: %s", query),
 			Err:   err,
 		}
 	}
@@ -312,7 +359,7 @@ func (d *DefaultRepo) GetOrderFilenames(ctx context.Context, orderID int) ([]str
 		if err := rows.Scan(&filename); err != nil {
 			return nil, &pkg.ErrDBProcedure{
 				Cause: "failed to scan row",
-				Info:  fmt.Sprintf("GetOrderFiles; query: %s", query),
+				Info:  fmt.Sprintf("GetOrderFilenames; query: %s", query),
 				Err:   err,
 			}
 		}
