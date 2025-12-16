@@ -1,23 +1,42 @@
 package file
 
 import (
+	"errors"
 	"io"
-	"log/slog"
 	"os"
+	"path/filepath"
+
+	"github.com/cespare/xxhash/v2"
 )
 
-func closeFileStream() func(fs io.ReadCloser) {
-	return func(fs io.ReadCloser) {
-		if err := fs.Close(); err != nil {
-			slog.Error("failed to close file stream", "err", err)
-		}
+func prepareFilepath(filePath string) (io.Writer, error) {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return nil, err
 	}
+
+	if _, err := os.Stat(filePath); errors.Is(os.ErrExist, err) {
+		return nil, ErrFileExists
+	}
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
-func closeFile() func(out *os.File) {
-	return func(out *os.File) {
-		if err := out.Close(); err != nil {
-			slog.Error("failed to close file", "err", err)
-		}
+func calculateChecksum(filePath string) (uint64, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
 	}
+	defer file.Close()
+
+	hasher := xxhash.New()
+	if _, err = io.Copy(hasher, file); err != nil {
+		return 0, err
+	}
+
+	return hasher.Sum64(), nil
 }
