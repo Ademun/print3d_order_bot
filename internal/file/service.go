@@ -2,13 +2,13 @@ package file
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/pkg/model"
 	"sync"
+
+	"go.uber.org/atomic"
 )
 
 type Service interface {
@@ -37,81 +37,87 @@ func (d *DefaultService) CreateFolder(folderPath string) error {
 	return os.MkdirAll(path, os.ModePerm)
 }
 
-func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.File) error {
+func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.File) chan DownloadResult {
 	wg := sync.WaitGroup{}
-	errChan := make(chan FailedFile, len(files))
+	counter := atomic.NewInt32(0)
+	result := make(chan DownloadResult)
 	// TODO: research optimal value and make it configurable
 	sem := make(chan struct{}, 5)
 
-	for _, file := range files {
-		sem <- struct{}{}
-		wg.Add(1)
-		go d.processFile(ctx, folderPath, file, sem, &wg, errChan)
-	}
-	wg.Wait()
-	close(errChan)
-
-	var failedFiles []FailedFile
-	for ff := range errChan {
-		failedFiles = append(failedFiles, ff)
-	}
-
-	if len(failedFiles) > 0 {
-		return &ErrProcessingFiles{
-			TotalFiles:  len(files),
-			FailedFiles: failedFiles,
+	d.wg.Add(1)
+	go func() {
+		defer d.wg.Done()
+		for _, file := range files {
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(f model.File) {
+				defer func() {
+					<-sem
+					wg.Done()
+				}()
+				d.processFile(ctx, folderPath, f, len(files), counter, result)
+			}(file)
 		}
-	}
+		wg.Wait()
+		close(result)
+	}()
 
-	return nil
+	return result
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.File, sem chan struct{}, wg *sync.WaitGroup, errChan chan FailedFile) {
-	defer wg.Done()
-	defer func() { <-sem }()
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.File, total int, counter *atomic.Int32, result chan DownloadResult) {
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
 
-	dst, err := d.prepareFilepath(filePath)
-	if err != nil {
-		errChan <- FailedFile{
-			Filename: file.Name,
-			Err:      err,
+	if file.TGFileID == nil {
+		result <- DownloadResult{
+			Result: nil,
+			Err:    ErrNoTgFileID,
 		}
+		return
 	}
 
-	if file.TGFileID == nil {
-		errChan <- FailedFile{
-			Filename: file.Name,
-			Err:      fmt.Errorf("file %s has no TGFileID", file.Name),
+	dst, err := prepareFilepath(filePath)
+	if err != nil {
+		result <- DownloadResult{
+			Result: nil,
+			Err:    &ErrPrepareFilepath{Err: err},
 		}
 		return
 	}
 
 	err = d.downloader.DownloadFile(ctx, *file.TGFileID, dst)
 	if err != nil {
-		errChan <- FailedFile{
-			Filename: file.Name,
-			Err:      err,
+		if err := os.Remove(filePath); err != nil {
+			result <- DownloadResult{
+				Result: nil,
+				Err:    &ErrDownloadFailed{Err: err},
+			}
 		}
-		return
-	}
-}
-
-func (d *DefaultService) prepareFilepath(filePath string) (io.Writer, error) {
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return nil, err
-	}
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		out, err := os.Create(filePath)
-		if err != nil {
-			return nil, err
+		result <- DownloadResult{
+			Result: nil,
+			Err:    &ErrDownloadFailed{Err: err},
 		}
-
-		return out, err
 	}
 
-	return nil, fmt.Errorf("file already exists: %s", filePath)
+	checksum, err := calculateChecksum(filePath)
+	if err != nil {
+		result <- DownloadResult{
+			Result: nil,
+			Err:    ErrCalculateChecksum,
+		}
+	}
+
+	counter.Inc()
+	result <- DownloadResult{
+		Result: &model.File{
+			Name:     file.Name,
+			Checksum: checksum,
+			TGFileID: file.TGFileID,
+		},
+		Index: int(counter.Load()),
+		Total: total,
+		Err:   nil,
+	}
 }
 
 func (d *DefaultService) GetFiles(ctx context.Context, folderPath string) (chan model.FileResult, error) {
@@ -156,8 +162,4 @@ func (d *DefaultService) GetFiles(ctx context.Context, folderPath string) (chan 
 func (d *DefaultService) DeleteFolder(folderPath string) error {
 	folderPath = filepath.Join(d.cfg.DirPath, folderPath)
 	return os.RemoveAll(folderPath)
-}
-
-func (d *DefaultService) SetDownloader(downloader Downloader) {
-	d.downloader = downloader
 }

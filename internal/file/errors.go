@@ -1,26 +1,28 @@
 package file
 
 import (
+	"errors"
 	"fmt"
-	"strings"
 )
 
-type FailedFile struct {
-	Filename string
-	Err      error
+var (
+	ErrNoTgFileID        = errors.New("file does not have telegram file_id")
+	ErrFileExists        = errors.New("file already exists")
+	ErrCalculateChecksum = errors.New("failed to calculate checksum")
+)
+
+type ErrDownloadFailed struct {
+	Err error
 }
 
-type ErrProcessingFiles struct {
-	TotalFiles  int
-	FailedFiles []FailedFile
+func (e *ErrDownloadFailed) Error() string {
+	return fmt.Errorf("failed to download file: %w", e.Err).Error()
 }
 
-func (e ErrProcessingFiles) Error() string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%d files processed. Got %d errors", e.TotalFiles, len(e.FailedFiles)))
-	for _, ff := range e.FailedFiles {
-		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf("%s: %s", ff.Filename, ff.Err.Error()))
-	}
-	return sb.String()
+type ErrPrepareFilepath struct {
+	Err error
+}
+
+func (e *ErrPrepareFilepath) Error() string {
+	return fmt.Errorf("failed to prepare file path: %w", e.Err).Error()
 }
