@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+type File struct {
+	Name     string
+	Checksum uint64
+	TgFileID *string
+}
+
 type DBOrder struct {
 	OrderID     int               `db:"order_id"`
 	OrderStatus model.OrderStatus `db:"order_status"`
@@ -18,8 +24,9 @@ type DBOrder struct {
 	FolderPath  string            `db:"folder_path"`
 }
 
-type DBOrderFile struct {
-	FileName string  `db:"file_name"`
+type DBFile struct {
+	Name     string  `db:"name"`
+	Checksum uint64  `db:"checksum"`
 	TgFileID *string `db:"tg_file_id"`
 	OrderID  int     `db:"order_id"`
 }
