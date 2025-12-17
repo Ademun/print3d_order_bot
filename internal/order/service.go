@@ -147,7 +147,7 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*Respon
 }
 
 func (d *DefaultService) CloseOrder(ctx context.Context, orderID int) error {
-	if err := d.repo.UpdateOrderStatus(ctx, orderID, model.StatusClosed); err != nil {
+	if err := d.repo.UpdateOrderStatus(ctx, orderID, StatusClosed); err != nil {
 		slog.Error("Error closing order", "error", err, "orderID", orderID)
 		return err
 	}
@@ -163,7 +163,7 @@ func (d *DefaultService) RestoreOrder(ctx context.Context, orderID int) error {
 	if order.ClosedAt != nil && time.Since(order.ClosedAt.UTC()).Hours() >= 24 {
 		return ErrRestorationPeriodExpired
 	}
-	if err := d.repo.UpdateOrderStatus(ctx, orderID, model.StatusActive); err != nil {
+	if err := d.repo.UpdateOrderStatus(ctx, orderID, StatusActive); err != nil {
 		slog.Error("Error restoring order", "error", err, "orderID", orderID)
 		return err
 	}

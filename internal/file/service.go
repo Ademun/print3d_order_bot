@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"print3d-order-bot/internal/pkg/config"
-	"print3d-order-bot/internal/pkg/model"
 	"sync"
 
 	"go.uber.org/atomic"
@@ -13,7 +12,7 @@ import (
 
 type Service interface {
 	CreateFolder(folderPath string) error
-	DownloadAndSave(ctx context.Context, folderPath string, files []model.File) chan DownloadResult
+	DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult
 	ReadFiles(folderPath string) (chan ReadResult, error)
 	DeleteFolder(folderPath string) error
 }
@@ -36,7 +35,7 @@ func (d *DefaultService) CreateFolder(folderPath string) error {
 	return os.MkdirAll(path, os.ModePerm)
 }
 
-func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []model.File) chan DownloadResult {
+func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult {
 	wg := sync.WaitGroup{}
 	counter := atomic.NewInt32(0)
 	result := make(chan DownloadResult)
@@ -49,7 +48,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 		for _, file := range files {
 			sem <- struct{}{}
 			wg.Add(1)
-			go func(f model.File) {
+			go func(f RequestFile) {
 				defer func() {
 					<-sem
 					wg.Done()
@@ -64,59 +63,59 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	return result
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file model.File, total int, counter *atomic.Int32, result chan DownloadResult) {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file RequestFile, total int, counter *atomic.Int32, result chan DownloadResult) {
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
 	counter.Inc()
-
-	if file.TGFileID == nil {
-		result <- DownloadResult{
-			Result: nil,
-			Index:  int(counter.Load()),
-			Total:  total,
-			Err:    ErrNoTgFileID,
-		}
-		return
-	}
 
 	dst, err := prepareFilepath(filePath)
 	if err != nil {
 		result <- DownloadResult{
-			Result: nil,
-			Index:  int(counter.Load()),
-			Total:  total,
-			Err:    &ErrPrepareFilepath{Err: err},
+			Result: &ResponseFile{
+				Name: file.Name,
+			},
+			Index: int(counter.Load()),
+			Total: total,
+			Err:   &ErrPrepareFilepath{Err: err},
 		}
 		return
 	}
 
-	err = d.downloader.DownloadFile(ctx, *file.TGFileID, dst)
+	err = d.downloader.DownloadFile(ctx, file.TGFileID, dst)
 	if err != nil {
 		if err := os.Remove(filePath); err != nil {
 			result <- DownloadResult{
-				Result: nil,
-				Err:    &ErrDownloadFailed{Err: err},
+				Result: &ResponseFile{
+					Name: file.Name,
+				},
+				Index: int(counter.Load()),
+				Total: total,
+				Err:   &ErrDownloadFailed{Err: err},
 			}
 		}
 		result <- DownloadResult{
-			Result: nil,
-			Index:  int(counter.Load()),
-			Total:  total,
-			Err:    &ErrDownloadFailed{Err: err},
+			Result: &ResponseFile{
+				Name: file.Name,
+			},
+			Index: int(counter.Load()),
+			Total: total,
+			Err:   &ErrDownloadFailed{Err: err},
 		}
 	}
 
 	checksum, err := calculateChecksum(filePath)
 	if err != nil {
 		result <- DownloadResult{
-			Result: nil,
-			Index:  int(counter.Load()),
-			Total:  total,
-			Err:    ErrCalculateChecksum,
+			Result: &ResponseFile{
+				Name: file.Name,
+			},
+			Index: int(counter.Load()),
+			Total: total,
+			Err:   ErrCalculateChecksum,
 		}
 	}
 
 	result <- DownloadResult{
-		Result: &model.File{
+		Result: &ResponseFile{
 			Name:     file.Name,
 			Checksum: checksum,
 			TGFileID: file.TGFileID,

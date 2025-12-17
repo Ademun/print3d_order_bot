@@ -2,11 +2,21 @@ package file
 
 import (
 	"io"
-	"print3d-order-bot/internal/pkg/model"
 )
 
+type RequestFile struct {
+	Name     string
+	TGFileID string
+}
+
+type ResponseFile struct {
+	Name     string
+	Checksum uint64
+	TGFileID string
+}
+
 type DownloadResult struct {
-	Result *model.File
+	Result *ResponseFile
 	Index  int
 	Total  int
 	Err    error

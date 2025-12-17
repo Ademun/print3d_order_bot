@@ -2,12 +2,15 @@ package telegram
 
 import (
 	"context"
-	"print3d-order-bot/internal/pkg/model"
+	"errors"
+	fileSvc "print3d-order-bot/internal/file"
+	orderSvc "print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
 	"print3d-order-bot/internal/telegram/internal/presentation"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -161,8 +164,72 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 			newData.CurrentIdx++
 		}
 	case "select":
+		b.router.Freeze(userID, "")
+		defer b.router.Unfreeze(userID)
+		filesToDownload := make([]fileSvc.RequestFile, len(newData.Files))
+		for i, f := range newData.Files {
+			filesToDownload[i] = fileSvc.RequestFile{
+				Name:     f.Name,
+				TGFileID: f.TGFileID,
+			}
+		}
+
+		msgID := b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
+			ParseMode: models.ParseModeMarkdown,
+		})
+
+		order, err := b.orderService.GetOrderByID(ctx, msgID)
+		if err != nil {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: userID,
+				Text:   presentation.GenericErrorMsg(),
+			})
+		}
+
+		downloaded := b.fileService.DownloadAndSave(ctx, order.FolderPath, filesToDownload)
+		orderFiles := make([]orderSvc.File, 0, len(filesToDownload))
+		downloadErrors := make(map[string]string)
+		for result := range downloaded {
+			if result.Err != nil {
+				var err string
+				var pathPrepErr *fileSvc.ErrPrepareFilepath
+				var downloadErr *fileSvc.ErrDownloadFailed
+				if errors.Is(result.Err, fileSvc.ErrFileExists) {
+					err = "Файл уже существует"
+				} else if errors.Is(result.Err, fileSvc.ErrCalculateChecksum) {
+					err = "Не удалось проверить целостность файла"
+				} else if errors.As(result.Err, &pathPrepErr) {
+					err = "Не удалось подготовить путь для загрузки файла"
+				} else if errors.As(result.Err, &downloadErr) {
+					err = "Не удалось загрузить файл. Попробуйте уменьшить его размер"
+				} else {
+					err = "Неизвестная ошибка. Свяжитесь с разработчиком для устранения"
+				}
+				downloadErrors[result.Result.Name] = err
+
+				continue
+			}
+			orderFiles = append(orderFiles, orderSvc.File{
+				Name:     result.Result.Name,
+				Checksum: result.Result.Checksum,
+				TgFileID: &result.Result.TGFileID,
+			})
+			b.EditMessageText(ctx, &bot.EditMessageTextParams{
+				ChatID:    userID,
+				MessageID: msgID,
+				Text:      presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total),
+				ParseMode: models.ParseModeMarkdown,
+			})
+		}
+		b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    userID,
+			MessageID: msgID,
+			Text:      presentation.DownloadResultMsg(downloadErrors),
+		})
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		if err := b.orderService.AddFilesToOrder(ctx, newData.OrdersIDs[newData.CurrentIdx], newData.Files); err != nil {
+		if err := b.orderService.AddFilesToOrder(ctx, newData.OrdersIDs[newData.CurrentIdx], orderFiles); err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
@@ -340,6 +407,9 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		return
 	}
 
+	b.router.Freeze(userID, "")
+	defer b.router.Unfreeze(userID)
+
 	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
@@ -350,14 +420,75 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		return
 	}
 
-	tgOrder := model.TGOrder{
+	createdAt := time.Now()
+	folderPath := CreateFolderPath(newData.ClientName, createdAt, update.CallbackQuery.Message.Message.ID)
+
+	filesToDownload := make([]fileSvc.RequestFile, len(newData.Files))
+	for i, f := range newData.Files {
+		filesToDownload[i] = fileSvc.RequestFile{
+			Name:     f.Name,
+			TGFileID: f.TGFileID,
+		}
+	}
+
+	msgID := b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    userID,
+		Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
+		ParseMode: models.ParseModeMarkdown,
+	})
+
+	downloaded := b.fileService.DownloadAndSave(ctx, folderPath, filesToDownload)
+	orderFiles := make([]orderSvc.File, 0, len(filesToDownload))
+	downloadErrors := make(map[string]string)
+	for result := range downloaded {
+		if result.Err != nil {
+			var err string
+			var pathPrepErr *fileSvc.ErrPrepareFilepath
+			var downloadErr *fileSvc.ErrDownloadFailed
+			if errors.Is(result.Err, fileSvc.ErrFileExists) {
+				err = "Файл уже существует"
+			} else if errors.Is(result.Err, fileSvc.ErrCalculateChecksum) {
+				err = "Не удалось проверить целостность файла"
+			} else if errors.As(result.Err, &pathPrepErr) {
+				err = "Не удалось подготовить путь для загрузки файла"
+			} else if errors.As(result.Err, &downloadErr) {
+				err = "Не удалось загрузить файл. Попробуйте уменьшить его размер"
+			} else {
+				err = "Неизвестная ошибка. Свяжитесь с разработчиком для устранения"
+			}
+			downloadErrors[result.Result.Name] = err
+
+			continue
+		}
+		orderFiles = append(orderFiles, orderSvc.File{
+			Name:     result.Result.Name,
+			Checksum: result.Result.Checksum,
+			TgFileID: &result.Result.TGFileID,
+		})
+		b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    userID,
+			MessageID: msgID,
+			Text:      presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total),
+			ParseMode: models.ParseModeMarkdown,
+		})
+	}
+	b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    userID,
+		MessageID: msgID,
+		Text:      presentation.DownloadResultMsg(downloadErrors),
+	})
+
+	data := orderSvc.RequestOrder{
 		ClientName: newData.ClientName,
+		Cost:       newData.Cost,
 		Comments:   newData.Comments,
 		Contacts:   newData.Contacts,
 		Links:      newData.Links,
+		CreatedAt:  createdAt,
+		FolderPath: folderPath,
 	}
 
-	if err := b.orderService.NewOrder(ctx, tgOrder, newData.Files); err != nil {
+	if err := b.orderService.NewOrder(ctx, data, orderFiles); err != nil {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,

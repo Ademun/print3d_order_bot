@@ -2,7 +2,7 @@ package presentation
 
 import (
 	"fmt"
-	"print3d-order-bot/internal/pkg/model"
+	"print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"strconv"
 	"strings"
@@ -52,6 +52,32 @@ func AskOrderSelectionMsg() string {
 	return "*📝 Выберите заказ из списка*"
 }
 
+func StartingDownloadMsg(total int) string {
+	return fmt.Sprintf("*💾 Начинаю загрузку файлов. Всего файлов: %d*", total)
+}
+
+func DownloadProgressMsg(fileName string, progress int, total int) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("*💾 Загружено %d файлов из %d*", progress, total))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(fmt.Sprintf("Загружаю файл `%s...`", fileName))
+	return sb.String()
+}
+
+func DownloadResultMsg(errors map[string]string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("*✔️ Загрузка файлов завершена*"))
+	if len(errors) > 0 {
+		sb.WriteString(breakLine(2))
+		sb.WriteString(fmt.Sprintf("*❌ Не удалось загрузить %d файлов*", len(errors)))
+		for filename, err := range errors {
+			sb.WriteString(breakLine(1))
+			sb.WriteString(fmt.Sprintf("%s - %s", filename, err))
+		}
+	}
+	return sb.String()
+}
+
 func NewOrderPreviewMsg(data *fsm.OrderData) string {
 	var sb strings.Builder
 	sb.WriteString("*❓ Создать новый заказ?*")
@@ -89,7 +115,7 @@ func NewOrderPreviewMsg(data *fsm.OrderData) string {
 		sb.WriteString("*📄 Файлы:*")
 		for _, file := range data.Files {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(file.FileName)))
+			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(file.Name)))
 		}
 	}
 	return sb.String()
@@ -103,11 +129,11 @@ func NewOrderCreatedMsg() string {
 	return "*✔️ Заказ успешно создан*"
 }
 
-func OrderViewMsg(data *model.Order) string {
+func OrderViewMsg(data *order.ResponseOrder) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("*Заказ №%d от %s*", data.OrderID, escapeMarkdown(data.CreatedAt.Format("2006-01-02"))))
+	sb.WriteString(fmt.Sprintf("*Заказ №%d от %s*", data.ID, escapeMarkdown(data.CreatedAt.Format("2006-01-02"))))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("*Статус: %s*", getStatusStr(data.OrderStatus)))
+	sb.WriteString(fmt.Sprintf("*Статус: %s*", getStatusStr(data.Status)))
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
 	sb.WriteString(breakLine(2))
@@ -137,12 +163,12 @@ func OrderViewMsg(data *model.Order) string {
 			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(link)))
 		}
 	}
-	if len(data.Filenames) > 0 {
+	if len(data.Files) > 0 {
 		sb.WriteString(breakLine(2))
 		sb.WriteString("*📄 Файлы:*")
-		for _, name := range data.Filenames {
+		for _, file := range data.Files {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(name)))
+			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(file.Name)))
 		}
 	}
 	return sb.String()

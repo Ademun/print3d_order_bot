@@ -2,8 +2,7 @@ package telegram
 
 import (
 	"context"
-	"fmt"
-	"print3d-order-bot/internal/pkg/model"
+	orderSvc "print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/presentation"
 
@@ -42,7 +41,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		})
 		return
 	}
-	action := extractOrderAction(order.OrderStatus)
+	action := extractOrderAction(order.Status)
 
 	newData := &fsm.OrderSliderData{
 		OrdersIDs:  ids,
@@ -113,6 +112,10 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			return
 		}
 	case "files":
+		b.router.Freeze(userID, "")
+		defer b.router.Unfreeze(userID)
+
+		b.reconcilerService.ReconcileOrder(ctx, newData.OrdersIDs[newData.CurrentIdx])
 		order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
 		if err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
@@ -122,7 +125,8 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			})
 			return
 		}
-		files, err := b.fileService.GetFiles(ctx, order.FolderPath)
+
+		files, err := b.fileService.ReadFiles(order.FolderPath)
 		if err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
@@ -132,26 +136,15 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			return
 		}
 
-		filenamesFiles := make(map[string]model.File)
-		for _, file := range order.Files {
-			filenamesFiles[file.Name] = file
-		}
-
-		for f := range files {
-			orderFile, ok := filenamesFiles[f.Filename]
-
-			if !ok || orderFile.Checksum != f.Checksum {
-				if err := b.mtprotoClient.UploadFile(ctx, f.Filename, f.File, messageID, userID); err != nil {
-					fmt.Println(err)
-					b.SendMessage(ctx, &bot.SendMessageParams{
-						ChatID:    userID,
-						Text:      presentation.GenericErrorMsg(),
-						ParseMode: models.ParseModeMarkdown,
-					})
-				}
-				continue
+		for file := range files {
+			if file.Err != nil {
+				b.SendMessage(ctx, &bot.SendMessageParams{})
+			}
+			if err := b.mtprotoClient.UploadFile(ctx, file.Name, file.Body, messageID, userID); err != nil {
+				b.SendMessage(ctx, &bot.SendMessageParams{})
 			}
 		}
+
 		return
 	default:
 		return
@@ -167,7 +160,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		})
 		return
 	}
-	action := extractOrderAction(order.OrderStatus)
+	action := extractOrderAction(order.Status)
 
 	disablePreview := true
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderViewSliderAction, newData)
@@ -183,11 +176,11 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 	})
 }
 
-func extractOrderAction(status model.OrderStatus) presentation.OrderSliderAction {
+func extractOrderAction(status orderSvc.Status) presentation.OrderSliderAction {
 	switch status {
-	case model.StatusActive:
+	case orderSvc.StatusActive:
 		return presentation.OrderSliderClose
-	case model.StatusClosed:
+	case orderSvc.StatusClosed:
 		return presentation.OrderSliderRestore
 	default:
 		return presentation.OrderSliderClose

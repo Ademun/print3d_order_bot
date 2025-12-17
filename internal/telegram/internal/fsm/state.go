@@ -1,6 +1,6 @@
 package fsm
 
-import "print3d-order-bot/internal/pkg/model"
+import "print3d-order-bot/internal/telegram/internal/model"
 
 type ConversationStep int
 
@@ -30,7 +30,7 @@ type OrderData struct {
 	Comments   []string
 	Contacts   []string
 	Links      []string
-	Files      []model.TGOrderFile
+	Files      []model.File
 	OrdersIDs  []int
 	CurrentIdx int
 }

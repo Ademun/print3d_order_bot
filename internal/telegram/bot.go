@@ -8,6 +8,7 @@ import (
 	"print3d-order-bot/internal/mtproto"
 	"print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/pkg/config"
+	"print3d-order-bot/internal/reconciler"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
 	"print3d-order-bot/internal/telegram/internal/presentation"
@@ -16,15 +17,16 @@ import (
 )
 
 type Bot struct {
-	orderService  order.Service
-	fileService   file.Service
-	api           *bot.Bot
-	mtprotoClient *mtproto.Client
-	router        *fsm.Router
-	collector     *media.Collector
+	orderService      order.Service
+	fileService       file.Service
+	reconcilerService reconciler.Service
+	api               *bot.Bot
+	mtprotoClient     *mtproto.Client
+	router            *fsm.Router
+	collector         *media.Collector
 }
 
-func NewBot(orderService order.Service, fileService file.Service, mtprotoClient *mtproto.Client, cfg *config.TelegramCfg) (*Bot, error) {
+func NewBot(orderService order.Service, fileService file.Service, reconcilerService reconciler.Service, mtprotoClient *mtproto.Client, cfg *config.TelegramCfg) (*Bot, error) {
 	state := fsm.NewFSM()
 	router := fsm.NewRouter(state)
 	collector := media.NewCollector()
@@ -35,12 +37,13 @@ func NewBot(orderService order.Service, fileService file.Service, mtprotoClient 
 	}
 
 	return &Bot{
-		orderService:  orderService,
-		fileService:   fileService,
-		api:           b,
-		mtprotoClient: mtprotoClient,
-		router:        router,
-		collector:     collector,
+		orderService:      orderService,
+		fileService:       fileService,
+		reconcilerService: reconcilerService,
+		api:               b,
+		mtprotoClient:     mtprotoClient,
+		router:            router,
+		collector:         collector,
 	}, nil
 }
 
@@ -61,10 +64,13 @@ func (b *Bot) Start(ctx context.Context) {
 	go b.api.Start(ctx)
 }
 
-func (b *Bot) SendMessage(ctx context.Context, params *bot.SendMessageParams) {
-	if _, err := b.api.SendMessage(ctx, params); err != nil {
+func (b *Bot) SendMessage(ctx context.Context, params *bot.SendMessageParams) int {
+	msg, err := b.api.SendMessage(ctx, params)
+	if err != nil {
 		slog.Error("Error sending message", "error", err, "params", params)
+		return 0
 	}
+	return msg.ID
 }
 
 func (b *Bot) EditMessageText(ctx context.Context, params *bot.EditMessageTextParams) {

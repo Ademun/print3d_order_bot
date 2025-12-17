@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"print3d-order-bot/internal/pkg"
-	"print3d-order-bot/internal/pkg/model"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -18,7 +17,7 @@ type Repo interface {
 	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
 	GetOrdersFolders(ctx context.Context, getActive bool) ([]string, error)
 	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
-	UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error
+	UpdateOrderStatus(ctx context.Context, orderID int, status Status) error
 	DeleteOrder(ctx context.Context, orderID int) error
 	GetOrderFiles(ctx context.Context, orderID int) ([]DBFile, error)
 	GetOrderFilenames(ctx context.Context, orderID int) ([]string, error)
@@ -138,7 +137,7 @@ func (d *DefaultRepo) GetOrdersIDs(ctx context.Context, getActive bool) ([]int, 
 	stmt := d.builder.Select("id").From("orders").OrderBy("created_at")
 	if getActive {
 		stmt = stmt.Where(squirrel.Or{
-			squirrel.Eq{"status": model.StatusActive},
+			squirrel.Eq{"status": StatusActive},
 			squirrel.And{
 				squirrel.NotEq{"closed_at": nil},
 				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
@@ -184,7 +183,7 @@ func (d *DefaultRepo) GetOrdersFolders(ctx context.Context, getActive bool) ([]s
 	stmt := d.builder.Select("folder_path").From("orders").OrderBy("created_at")
 	if getActive {
 		stmt = stmt.Where(squirrel.Or{
-			squirrel.Eq{"status": model.StatusActive},
+			squirrel.Eq{"status": StatusActive},
 			squirrel.And{
 				squirrel.NotEq{"closed_at": nil},
 				squirrel.Expr("closed_at >= NOW() - INTERVAL '1 day'"),
@@ -249,12 +248,12 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, 
 	return &order, nil
 }
 
-func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status model.OrderStatus) error {
+func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status Status) error {
 	stmt := d.builder.Update("orders").Set("order_status", status)
 	switch status {
-	case model.StatusClosed:
+	case StatusClosed:
 		stmt = stmt.Set("closed_at", time.Now())
-	case model.StatusActive:
+	case StatusActive:
 		stmt = stmt.Set("closed_at", nil)
 	}
 	stmt = stmt.Where(squirrel.Eq{"order_id": orderID})

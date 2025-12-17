@@ -1,12 +1,14 @@
 package presentation
 
-import "print3d-order-bot/internal/pkg/model"
+import (
+	"print3d-order-bot/internal/order"
+)
 
-func getStatusStr(status model.OrderStatus) string {
+func getStatusStr(status order.Status) string {
 	switch status {
-	case model.StatusActive:
+	case order.StatusActive:
 		return "🟡 Активен"
-	case model.StatusClosed:
+	case order.StatusClosed:
 		return "🟢 Закрыт"
 	default:
 		return "🔴 Неизвестен"
