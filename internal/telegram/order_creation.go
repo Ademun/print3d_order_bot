@@ -38,7 +38,7 @@ func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *mod
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.AddedDataToOrderMsg(),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
@@ -54,7 +54,7 @@ func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *mod
 			ChatID:      userID,
 			Text:        presentation.AskOrderTypeMsg(),
 			ReplyMarkup: presentation.OrderTypeKbd(),
-			ParseMode:   models.ParseModeMarkdown,
+			ParseMode:   models.ParseModeHTML,
 		})
 	})
 }
@@ -74,7 +74,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 			Text:      presentation.AskClientNameMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -85,7 +85,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -95,7 +95,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -104,7 +104,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.EmptyOrderListMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -117,7 +117,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -126,13 +126,13 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 		Text:      presentation.AskOrderSelectionMsg(),
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
 		Text:        presentation.OrderViewMsg(order),
 		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(ids), 0),
-		ParseMode:   models.ParseModeMarkdown,
+		ParseMode:   models.ParseModeHTML,
 	})
 }
 
@@ -150,7 +150,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -178,7 +178,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		msgID := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 
 		order, err := b.orderService.GetOrderByID(ctx, msgID)
@@ -221,7 +221,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 				ChatID:    userID,
 				MessageID: msgID,
 				Text:      presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 		}
 		b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -234,14 +234,14 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.AddedDataToOrderMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	default:
@@ -254,7 +254,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -269,7 +269,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &disablePreview,
 		},
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 }
 
@@ -286,7 +286,7 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -296,7 +296,7 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    userID,
 		Text:      presentation.AskOrderCostMsg(),
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 }
 
@@ -313,7 +313,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.CostValidationErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 	}
 
@@ -323,7 +323,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -334,7 +334,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 		ChatID:      userID,
 		Text:        presentation.AskOrderCommentsMsg(),
 		ReplyMarkup: presentation.SkipKbd(),
-		ParseMode:   models.ParseModeMarkdown,
+		ParseMode:   models.ParseModeHTML,
 	})
 }
 
@@ -359,7 +359,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -371,7 +371,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 			ChatID:      userID,
 			Text:        presentation.NewOrderPreviewMsg(newData),
 			ReplyMarkup: presentation.YesNoKbd(),
-			ParseMode:   models.ParseModeMarkdown,
+			ParseMode:   models.ParseModeHTML,
 		})
 		return
 	}
@@ -384,7 +384,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 		ChatID:      userID,
 		Text:        presentation.NewOrderPreviewMsg(newData),
 		ReplyMarkup: presentation.YesNoKbd(),
-		ParseMode:   models.ParseModeMarkdown,
+		ParseMode:   models.ParseModeHTML,
 	})
 }
 
@@ -403,7 +403,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 			Text:      presentation.NewOrderCancelledMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -438,7 +438,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 	msgID := b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    userID,
 		Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 
 	downloaded := b.fileService.DownloadAndSave(ctx, folderPath, filesToDownload)
@@ -473,7 +473,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 			ChatID:    userID,
 			MessageID: msgID,
 			Text:      presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 	}
 	b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -497,7 +497,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -510,7 +510,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &disablePreview,
 		},
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 }
 

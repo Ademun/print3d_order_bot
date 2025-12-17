@@ -74,7 +74,7 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 				if _, err := b.SendMessage(ctx, &bot.SendMessageParams{
 					ChatID:    userID,
 					Text:      msg,
-					ParseMode: models.ParseModeMarkdown,
+					ParseMode: models.ParseModeHTML,
 				}); err != nil {
 					slog.Error(err.Error())
 				}

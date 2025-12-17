@@ -18,7 +18,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -27,7 +27,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.EmptyOrderListMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -37,7 +37,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -57,7 +57,7 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &disablePreview,
 		},
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 }
 
@@ -79,7 +79,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -98,7 +98,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
@@ -107,7 +107,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
@@ -121,7 +121,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
@@ -131,7 +131,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
 				Text:      presentation.GenericErrorMsg(),
-				ParseMode: models.ParseModeMarkdown,
+				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
@@ -144,7 +144,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 				b.SendMessage(ctx, &bot.SendMessageParams{
 					ChatID:    userID,
 					Text:      presentation.UploadErrorMsg(file.Name),
-					ParseMode: models.ParseModeMarkdown,
+					ParseMode: models.ParseModeHTML,
 				})
 			}
 		}
@@ -160,7 +160,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.GenericErrorMsg(),
-			ParseMode: models.ParseModeMarkdown,
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -176,7 +176,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &disablePreview,
 		},
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 }
 

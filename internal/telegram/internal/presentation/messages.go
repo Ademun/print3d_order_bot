@@ -9,35 +9,35 @@ import (
 )
 
 func GenericErrorMsg() string {
-	return "*❌ Произошла неизвестная ошибка, попробуйте позже*"
+	return "<b>❌ Произошла неизвестная ошибка, попробуйте позже</b>"
 }
 
 func HelpMsg() string {
 	var sb strings.Builder
-	sb.WriteString("*❓ Чтобы создать заказ отправь или перешли боту сообщение с вложениями и/или ссылкой / почтой / номером телефона*")
+	sb.WriteString("<b>❓ Чтобы создать заказ отправь или перешли боту сообщение с вложениями и/или ссылкой / почтой / номером телефона</b>")
 	sb.WriteString(breakLine(2))
-	sb.WriteString("*🤖 Бот поддерживает следующие вложения: фото, видео, файлы, кружочки и голосовые сообщения*")
+	sb.WriteString("<b>🤖 Бот поддерживает следующие вложения: фото, видео, файлы, кружочки и голосовые сообщения</b>")
 	sb.WriteString(breakLine(2))
-	sb.WriteString("*⚙️ Доступные команды:*")
+	sb.WriteString("<b>⚙️ Доступные команды:</b>")
 	sb.WriteString(breakLine(2))
-	sb.WriteString("*/orders — просмотреть активные заказы*")
+	sb.WriteString("<b>/orders — просмотреть активные заказы</b>")
 	return sb.String()
 }
 
 func AskOrderTypeMsg() string {
-	return "*❓ Вы хотите создать новый заказ или добавить информацию к старому?*"
+	return "<b>❓ Вы хотите создать новый заказ или добавить информацию к старому?</b>"
 }
 
 func AddedDataToOrderMsg() string {
-	return "*✔️ Добавлены новые данные к заказу*"
+	return "<b>✔️ Добавлены новые данные к заказу</b>"
 }
 
 func AskClientNameMsg() string {
-	return "*👤 Введите имя клиента*"
+	return "<b>👤 Введите имя клиента</b>"
 }
 
 func AskOrderCostMsg() string {
-	return "*💰 Введите стоимость заказа в рублях*"
+	return "<b>💰 Введите стоимость заказа в рублях</b>"
 }
 
 func CostValidationErrorMsg() string {
@@ -45,31 +45,31 @@ func CostValidationErrorMsg() string {
 }
 
 func AskOrderCommentsMsg() string {
-	return "*💬 Введите комментарий к заказу*"
+	return "<b>💬 Введите комментарий к заказу</b>"
 }
 
 func AskOrderSelectionMsg() string {
-	return "*📝 Выберите заказ из списка*"
+	return "<b>📝 Выберите заказ из списка</b>"
 }
 
 func StartingDownloadMsg(total int) string {
-	return fmt.Sprintf(escapeMarkdown("*💾 Начинаю загрузку файлов. Всего файлов: %d*"), total)
+	return fmt.Sprintf("<b>💾 Начинаю загрузку файлов. Всего файлов: %d</b>", total)
 }
 
 func DownloadProgressMsg(fileName string, progress int, total int) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("*💾 Загружено %d файлов из %d*", progress, total))
+	sb.WriteString(fmt.Sprintf("<b>💾 Загружено %d файлов из %d</b>", progress, total))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("Загружаю файл `%s...`", escapeMarkdown(fileName)))
+	sb.WriteString(fmt.Sprintf("Загружаю файл `%s...`", fileName))
 	return sb.String()
 }
 
 func DownloadResultMsg(errors map[string]string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("*✔️ Загрузка файлов завершена*"))
+	sb.WriteString(fmt.Sprintf("<b>✔️ Загрузка файлов завершена</b>"))
 	if len(errors) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString(fmt.Sprintf("*❌ Не удалось загрузить %d файлов*", len(errors)))
+		sb.WriteString(fmt.Sprintf("<b>❌ Не удалось загрузить %d файлов</b>", len(errors)))
 		for filename, err := range errors {
 			sb.WriteString(breakLine(1))
 			sb.WriteString(fmt.Sprintf("%s - %s", filename, err))
@@ -80,130 +80,116 @@ func DownloadResultMsg(errors map[string]string) string {
 
 func NewOrderPreviewMsg(data *fsm.OrderData) string {
 	var sb strings.Builder
-	sb.WriteString("*❓ Создать новый заказ?*")
+	sb.WriteString("<b>❓ Создать новый заказ?</b>")
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
+	sb.WriteString(fmt.Sprintf("<b>👤 Клиент: %s</b>", data.ClientName))
 	sb.WriteString(breakLine(2))
 	costStr := strconv.FormatFloat(float64(data.Cost), 'f', -1, 64)
-	sb.WriteString(fmt.Sprintf("*💲 Стоимость заказа %s₽*", escapeMarkdown(costStr)))
+	sb.WriteString(fmt.Sprintf("<b>💲 Стоимость заказа %s₽</b>", costStr))
 	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*💬 Комментарии к заказу:*")
+		sb.WriteString("<b>💬 Комментарии к заказу:</b>")
 		for _, comment := range data.Comments {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(comment)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", comment))
 		}
 	}
 	if len(data.Contacts) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*📞 Контакты:*")
+		sb.WriteString("<b>📞 Контакты:</b>")
 		for _, contact := range data.Contacts {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(contact)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", contact))
 		}
 	}
 	if len(data.Links) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*🔗 Ссылки:*")
+		sb.WriteString("<b>🔗 Ссылки:</b>")
 		for _, link := range data.Links {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(link)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", link))
 		}
 	}
 	if len(data.Files) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*📄 Файлы:*")
+		sb.WriteString("<b>📄 Файлы:</b>")
 		for _, file := range data.Files {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(file.Name)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", file.Name))
 		}
 	}
 	return sb.String()
 }
 
 func NewOrderCancelledMsg() string {
-	return "*❌ Создание заказа отменено*"
+	return "<b>❌ Создание заказа отменено</b>"
 }
 
 func NewOrderCreatedMsg() string {
-	return "*✔️ Заказ успешно создан*"
+	return "<b>✔️ Заказ успешно создан</b>"
 }
 
 func OrderViewMsg(data *order.ResponseOrder) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("*Заказ №%d от %s*", data.ID, escapeMarkdown(data.CreatedAt.Format("2006-01-02"))))
+	sb.WriteString(fmt.Sprintf("<b>Заказ №%d от %s</b>", data.ID, data.CreatedAt.Format("2006-01-02")))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("*Статус: %s*", getStatusStr(data.Status)))
+	sb.WriteString(fmt.Sprintf("<b>Статус: %s</b>", getStatusStr(data.Status)))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("*👤 Клиент: %s*", escapeMarkdown(data.ClientName)))
+	sb.WriteString(fmt.Sprintf("<b>👤 Клиент: %s</b>", data.ClientName))
 	sb.WriteString(breakLine(2))
 	costStr := strconv.FormatFloat(float64(data.Cost), 'f', -1, 64)
-	sb.WriteString(fmt.Sprintf("*💲 Стоимость заказа %s₽*", escapeMarkdown(costStr)))
+	sb.WriteString(fmt.Sprintf("<b>💲 Стоимость заказа %s₽</b>", costStr))
 	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*💬 Комментарии к заказу:*")
+		sb.WriteString("<b>💬 Комментарии к заказу:</b>")
 		for _, comment := range data.Comments {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(comment)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", comment))
 		}
 	}
 	if len(data.Contacts) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*📞 Контакты:*")
+		sb.WriteString("<b>📞 Контакты:</b>")
 		for _, contact := range data.Contacts {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(contact)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", contact))
 		}
 	}
 	if len(data.Links) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*🔗 Ссылки:*")
+		sb.WriteString("<b>🔗 Ссылки:</b>")
 		for _, link := range data.Links {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(link)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", link))
 		}
 	}
 	if len(data.Files) > 0 {
 		sb.WriteString(breakLine(2))
-		sb.WriteString("*📄 Файлы:*")
+		sb.WriteString("<b>📄 Файлы:</b>")
 		for _, file := range data.Files {
 			sb.WriteString(breakLine(1))
-			sb.WriteString(fmt.Sprintf("*%s*", escapeMarkdown(file.Name)))
+			sb.WriteString(fmt.Sprintf("<b>%s</b>", file.Name))
 		}
 	}
 	return sb.String()
 }
 
 func EmptyOrderListMsg() string {
-	return "*🔍 У вас пока нет активных заказов*"
+	return "<b>🔍 У вас пока нет активных заказов</b>"
 }
 
 func PendingDownloadMsg() string {
-	return "*Пожалуйста, дождитесь загрузки файлов*"
+	return "<b>Пожалуйста, дождитесь загрузки файлов</b>"
 }
 
 func PendingUploadMsg() string {
-	return "*Пожалуйста, дождитесь отправки файлов*"
+	return "<b>Пожалуйста, дождитесь отправки файлов</b>"
 }
 
 func UploadErrorMsg(filename string) string {
-	return fmt.Sprintf("*❌ Не удалось загрузить файл %s*", escapeMarkdown(filename))
+	return fmt.Sprintf("<b>❌ Не удалось загрузить файл %s</b>", filename)
 }
 
 func breakLine(n int) string {
 	return strings.Repeat("\n", n)
-}
-
-func escapeMarkdown(s string) string {
-	specialChars := []string{
-		"_", "*", "[", "]", "(", ")", "~", "`", ">",
-		"#", "+", "-", "=", "|", "{", "}", ".", "!",
-	}
-
-	result := s
-	for _, char := range specialChars {
-		result = strings.ReplaceAll(result, char, "\\"+char)
-	}
-
-	return result
 }

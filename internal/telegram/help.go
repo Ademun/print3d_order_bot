@@ -12,6 +12,6 @@ func (b *Bot) handlerHelpCmd(ctx context.Context, api *bot.Bot, update *models.U
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.From.ID,
 		Text:      presentation.HelpMsg(),
-		ParseMode: models.ParseModeMarkdown,
+		ParseMode: models.ParseModeHTML,
 	})
 }
