@@ -3,8 +3,6 @@ package order
 import (
 	"context"
 	"log/slog"
-	"print3d-order-bot/internal/file"
-	"print3d-order-bot/internal/pkg/model"
 	"time"
 )
 
@@ -22,8 +20,7 @@ type Service interface {
 }
 
 type DefaultService struct {
-	repo        Repo
-	fileService file.Service
+	repo Repo
 }
 
 func NewDefaultService(repo Repo) Service {
