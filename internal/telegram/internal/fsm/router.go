@@ -17,14 +17,15 @@ type Router struct {
 	handlers          map[ConversationStep]HandlerFunc
 	pendingUsers      map[int64]string
 	attachmentHandler HandlerFunc
-	mu                *sync.RWMutex
+	mu                sync.RWMutex
 }
 
 func NewRouter(fsm *FSM) *Router {
 	return &Router{
-		fsm:      fsm,
-		handlers: make(map[ConversationStep]HandlerFunc),
-		mu:       &sync.RWMutex{},
+		fsm:          fsm,
+		handlers:     make(map[ConversationStep]HandlerFunc),
+		pendingUsers: make(map[int64]string),
+		mu:           sync.RWMutex{},
 	}
 }
 
@@ -68,7 +69,6 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 
 		r.mu.RLock()
 		defer r.mu.RUnlock()
-
 		if msg, ok := r.pendingUsers[userID]; ok {
 			func(ctx context.Context, b *bot.Bot, update *models.Update) {
 				if _, err := b.SendMessage(ctx, &bot.SendMessageParams{
@@ -122,9 +122,8 @@ func (r *Router) Transition(ctx context.Context, userID int64, nextStep Conversa
 }
 
 func (r *Router) Freeze(userID int64, msg string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.pendingUsers[userID] = msg
+	slog.Info("Freeze", userID, msg)
 }
 
 func (r *Router) Unfreeze(userID int64) {

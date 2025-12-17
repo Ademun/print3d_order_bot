@@ -53,14 +53,14 @@ func AskOrderSelectionMsg() string {
 }
 
 func StartingDownloadMsg(total int) string {
-	return fmt.Sprintf("*💾 Начинаю загрузку файлов. Всего файлов: %d*", total)
+	return fmt.Sprintf(escapeMarkdown("*💾 Начинаю загрузку файлов. Всего файлов: %d*"), total)
 }
 
 func DownloadProgressMsg(fileName string, progress int, total int) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("*💾 Загружено %d файлов из %d*", progress, total))
 	sb.WriteString(breakLine(2))
-	sb.WriteString(fmt.Sprintf("Загружаю файл `%s...`", fileName))
+	sb.WriteString(fmt.Sprintf("Загружаю файл `%s...`", escapeMarkdown(fileName)))
 	return sb.String()
 }
 

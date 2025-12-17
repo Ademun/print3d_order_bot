@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 )
@@ -109,6 +110,9 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*Respon
 	if err != nil {
 		slog.Error("Error retrieving order", "error", err, "orderID", orderID)
 		return nil, err
+	}
+	if dbOrder == nil {
+		return nil, fmt.Errorf("order not found")
 	}
 
 	dbFiles, err := d.repo.GetOrderFiles(ctx, orderID)

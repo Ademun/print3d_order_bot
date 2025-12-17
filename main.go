@@ -46,7 +46,7 @@ func main() {
 	reconcilerService := reconciler.NewDefaultService(orderService, fileService, &cfg.FileService)
 	reconcilerService.Start(ctx)
 
-	bot, err := telegram.NewBot(orderService, fileService, mtprotoClient, &cfg.TelegramCfg)
+	bot, err := telegram.NewBot(orderService, fileService, reconcilerService, mtprotoClient, &cfg.TelegramCfg)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,7 +1,7 @@
 package media
 
 import (
-	"print3d-order-bot/internal/pkg/model"
+	"print3d-order-bot/internal/telegram/internal/model"
 	"sync"
 	"time"
 
@@ -14,7 +14,7 @@ type Collector struct {
 }
 
 type Window struct {
-	Media    []model.TGOrderFile
+	Media    []model.File
 	Contacts []string
 	Links    []string
 	Timer    *time.Timer
@@ -37,7 +37,7 @@ func (c *Collector) GetOrCreateWindow(id int64) *Window {
 	}
 
 	window := &Window{
-		Media:    make([]model.TGOrderFile, 0),
+		Media:    make([]model.File, 0),
 		Contacts: make([]string, 0),
 		Links:    make([]string, 0),
 		mu:       sync.Mutex{},

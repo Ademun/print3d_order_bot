@@ -17,7 +17,7 @@ create table orders
 create table order_files
 (
     name  text not null,
-    checksum int not null,
+    checksum numeric not null,
     tg_file_id text,
     order_id   int  not null,
     foreign key (order_id) references orders (id) on delete cascade

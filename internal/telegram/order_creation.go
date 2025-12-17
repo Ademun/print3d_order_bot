@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"errors"
+	"log/slog"
 	fileSvc "print3d-order-bot/internal/file"
 	orderSvc "print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
@@ -406,9 +407,12 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		})
 		return
 	}
-
+	slog.Info("1")
 	b.router.Freeze(userID, presentation.PendingDownloadMsg())
+	slog.Info("2")
 	defer b.router.Unfreeze(userID)
+
+	slog.Info("reached")
 
 	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {

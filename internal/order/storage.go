@@ -71,7 +71,7 @@ func (d *DefaultRepo) NewOrder(ctx context.Context, order DBOrder, files []DBFil
 		tx.Rollback(ctx)
 		return &pkg.ErrDBProcedure{
 			Cause: "failed to insert file data",
-			Info:  fmt.Sprintf("NewOrderOpenTx; query: %s", query),
+			Info:  fmt.Sprintf("NewOrder; query: %s", query),
 			Err:   err,
 		}
 	}

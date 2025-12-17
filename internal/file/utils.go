@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cespare/xxhash/v2"
+	"github.com/cespare/xxhash"
 )
 
 func prepareFilepath(filePath string) (io.Writer, error) {
