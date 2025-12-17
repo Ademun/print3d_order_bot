@@ -112,7 +112,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			return
 		}
 	case "files":
-		b.router.Freeze(userID, "")
+		b.router.Freeze(userID, presentation.PendingUploadMsg())
 		defer b.router.Unfreeze(userID)
 
 		b.reconcilerService.ReconcileOrder(ctx, newData.OrdersIDs[newData.CurrentIdx])
@@ -141,7 +141,11 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 				b.SendMessage(ctx, &bot.SendMessageParams{})
 			}
 			if err := b.mtprotoClient.UploadFile(ctx, file.Name, file.Body, messageID, userID); err != nil {
-				b.SendMessage(ctx, &bot.SendMessageParams{})
+				b.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID:    userID,
+					Text:      presentation.UploadErrorMsg(file.Name),
+					ParseMode: models.ParseModeMarkdown,
+				})
 			}
 		}
 

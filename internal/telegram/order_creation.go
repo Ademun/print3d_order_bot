@@ -164,7 +164,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 			newData.CurrentIdx++
 		}
 	case "select":
-		b.router.Freeze(userID, "")
+		b.router.Freeze(userID, presentation.PendingDownloadMsg())
 		defer b.router.Unfreeze(userID)
 		filesToDownload := make([]fileSvc.RequestFile, len(newData.Files))
 		for i, f := range newData.Files {
@@ -407,7 +407,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		return
 	}
 
-	b.router.Freeze(userID, "")
+	b.router.Freeze(userID, presentation.PendingDownloadMsg())
 	defer b.router.Unfreeze(userID)
 
 	newData, ok := state.Data.(*fsm.OrderData)

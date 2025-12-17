@@ -178,6 +178,18 @@ func EmptyOrderListMsg() string {
 	return "*🔍 У вас пока нет активных заказов*"
 }
 
+func PendingDownloadMsg() string {
+	return "*Пожалуйста, дождитесь загрузки файлов*"
+}
+
+func PendingUploadMsg() string {
+	return "*Пожалуйста, дождитесь отправки файлов*"
+}
+
+func UploadErrorMsg(filename string) string {
+	return fmt.Sprintf("*❌ Не удалось загрузить файл %s*", escapeMarkdown(filename))
+}
+
 func breakLine(n int) string {
 	return strings.Repeat("\n", n)
 }
