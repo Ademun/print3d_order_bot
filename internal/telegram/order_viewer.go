@@ -15,15 +15,17 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 
 	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
 	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderIDsLoadErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
 
 	if len(ids) == 0 {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.EmptyOrderListMsg(),
@@ -34,9 +36,10 @@ func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *mode
 
 	order, err := b.orderService.GetOrderByID(ctx, ids[0])
 	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderLoadErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -78,7 +81,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.StateConversionErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -97,7 +100,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		if err := b.orderService.CloseOrder(ctx, newData.OrdersIDs[newData.CurrentIdx]); err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
-				Text:      presentation.GenericErrorMsg(),
+				Text:      presentation.OrderCloseErrorMsg(),
 				ParseMode: models.ParseModeHTML,
 			})
 			return
@@ -106,7 +109,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		if err := b.orderService.RestoreOrder(ctx, newData.OrdersIDs[newData.CurrentIdx]); err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
-				Text:      presentation.GenericErrorMsg(),
+				Text:      presentation.OrderRestoreErrorMsg(),
 				ParseMode: models.ParseModeHTML,
 			})
 			return
@@ -120,7 +123,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		if err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
-				Text:      presentation.GenericErrorMsg(),
+				Text:      presentation.OrderLoadErrorMsg(),
 				ParseMode: models.ParseModeHTML,
 			})
 			return
@@ -130,7 +133,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		if err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
-				Text:      presentation.GenericErrorMsg(),
+				Text:      presentation.FilesLoadErrorMsg(),
 				ParseMode: models.ParseModeHTML,
 			})
 			return
@@ -159,7 +162,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderLoadErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return

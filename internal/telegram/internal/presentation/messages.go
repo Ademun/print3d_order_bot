@@ -31,6 +31,18 @@ func OrderCreationErrorMsg() string {
 	return "<b>❌ Не удалось создать заказ. Попробуйте снова</b>"
 }
 
+func OrderCloseErrorMsg() string {
+	return "<b>❌ Не удалось закрыть заказ. Попробуйте позже</b>"
+}
+
+func OrderRestoreErrorMsg() string {
+	return "<b>❌ Не удалось восстановить заказ. Попробуйте позже</b>"
+}
+
+func FilesLoadErrorMsg() string {
+	return "<b>❌ Не удалось загрузить файлы заказа. Попробуйте позже</b>"
+}
+
 func HelpMsg() string {
 	var sb strings.Builder
 	sb.WriteString("<b>❓ Чтобы создать заказ отправь или перешли боту сообщение с вложениями и/или ссылкой / почтой / номером телефона</b>")
