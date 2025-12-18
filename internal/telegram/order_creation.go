@@ -71,7 +71,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 	if orderType == "new_order" {
 		b.tryTransition(ctx, userID, fsm.StepAwaitingClientName, state.Data)
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.AskClientNameMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
@@ -83,7 +83,7 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.StateConversionErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -91,15 +91,17 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 
 	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
 	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderIDsLoadErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
 
 	if len(ids) == 0 {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.EmptyOrderListMsg(),
@@ -113,9 +115,10 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 
 	order, err := b.orderService.GetOrderByID(ctx, ids[0])
 	if err != nil {
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderLoadErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -123,12 +126,12 @@ func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSelectSliderAction, state.Data)
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
+		ChatID:    userID,
 		Text:      presentation.AskOrderSelectionMsg(),
 		ParseMode: models.ParseModeHTML,
 	})
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      update.CallbackQuery.Message.Message.Chat.ID,
+		ChatID:      userID,
 		Text:        presentation.OrderViewMsg(order),
 		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(ids), 0),
 		ParseMode:   models.ParseModeHTML,
@@ -148,7 +151,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.StateConversionErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -183,9 +186,11 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		order, err := b.orderService.GetOrderByID(ctx, msgID)
 		if err != nil {
 			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: userID,
-				Text:   presentation.GenericErrorMsg(),
+				ChatID:    userID,
+				Text:      presentation.OrderLoadErrorMsg(),
+				ParseMode: models.ParseModeHTML,
 			})
+			return
 		}
 
 		downloaded := b.fileService.DownloadAndSave(ctx, order.FolderPath, filesToDownload)
@@ -231,13 +236,15 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		})
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		if err := b.orderService.AddFilesToOrder(ctx, newData.OrdersIDs[newData.CurrentIdx], orderFiles); err != nil {
+			b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    userID,
-				Text:      presentation.GenericErrorMsg(),
+				Text:      presentation.AddFilesToOrderWarningMsg(),
 				ParseMode: models.ParseModeHTML,
 			})
 			return
 		}
+		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
 			Text:      presentation.AddedDataToOrderMsg(),
@@ -253,7 +260,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderLoadErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -285,7 +292,7 @@ func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.StateConversionErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -323,7 +330,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.StateConversionErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -359,7 +366,7 @@ func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *mod
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    userID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.StateConversionErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return
@@ -416,7 +423,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.CallbackQuery.Message.Message.Chat.ID,
-			Text:   presentation.GenericErrorMsg(),
+			Text:   presentation.StateConversionErrorMsg(),
 		})
 		return
 	}
@@ -497,7 +504,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
-			Text:      presentation.GenericErrorMsg(),
+			Text:      presentation.OrderCreationErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
 		return

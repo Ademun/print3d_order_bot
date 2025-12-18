@@ -11,6 +11,26 @@ func GenericErrorMsg() string {
 	return "<b>❌ Произошла неизвестная ошибка, попробуйте позже</b>"
 }
 
+func StateConversionErrorMsg() string {
+	return "<b>❌ Не удалось загрузить данные прошлого ответа. Начните сначала</b>"
+}
+
+func OrderIDsLoadErrorMsg() string {
+	return "<b>❌ Не удалось загрузить список заказов. Попробуйте позже<b/>"
+}
+
+func OrderLoadErrorMsg() string {
+	return "<b>❌ Не удалось загрузить данные о заказе. Попробуйте позже</b>"
+}
+
+func AddFilesToOrderWarningMsg() string {
+	return "<b>⚠️ Не удалось добавить файлы к заказу. Они будут добавлены при загрузке файлов заказа</b>"
+}
+
+func OrderCreationErrorMsg() string {
+	return "<b>❌ Не удалось создать заказ. Попробуйте снова</b>"
+}
+
 func HelpMsg() string {
 	var sb strings.Builder
 	sb.WriteString("<b>❓ Чтобы создать заказ отправь или перешли боту сообщение с вложениями и/или ссылкой / почтой / номером телефона</b>")
