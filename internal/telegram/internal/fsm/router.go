@@ -15,17 +15,15 @@ type HandlerFunc func(ctx context.Context, api *bot.Bot, update *models.Update, 
 type Router struct {
 	fsm               *FSM
 	handlers          map[ConversationStep]HandlerFunc
-	pendingUsers      map[int64]string
+	pendingUsers      sync.Map
 	attachmentHandler HandlerFunc
-	mu                sync.RWMutex
 }
 
 func NewRouter(fsm *FSM) *Router {
 	return &Router{
 		fsm:          fsm,
 		handlers:     make(map[ConversationStep]HandlerFunc),
-		pendingUsers: make(map[int64]string),
-		mu:           sync.RWMutex{},
+		pendingUsers: sync.Map{},
 	}
 }
 
@@ -34,8 +32,6 @@ func (r *Router) SetAttachmentHandler(handler HandlerFunc) {
 }
 
 func (r *Router) RegisterHandler(step ConversationStep, handler HandlerFunc) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.handlers[step] = handler
 }
 
@@ -44,6 +40,9 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 		var userID int64
 		if update.Message != nil {
 			userID = update.Message.From.ID
+			if r.tryBlock(userID, ctx, b, update) {
+				return
+			}
 			if strings.HasPrefix(update.Message.Text, "/") {
 				if err := r.fsm.ResetState(ctx, userID); err != nil {
 					return
@@ -67,18 +66,8 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 			return
 		}
 
-		r.mu.RLock()
-		defer r.mu.RUnlock()
-		if msg, ok := r.pendingUsers[userID]; ok {
-			func(ctx context.Context, b *bot.Bot, update *models.Update) {
-				if _, err := b.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID:    userID,
-					Text:      msg,
-					ParseMode: models.ParseModeHTML,
-				}); err != nil {
-					slog.Error(err.Error())
-				}
-			}(ctx, b, update)
+		if r.tryBlock(userID, ctx, b, update) {
+			return
 		}
 
 		state, err := r.fsm.GetOrCreateState(userID)
@@ -104,7 +93,7 @@ func (r *Router) Transition(ctx context.Context, userID int64, nextStep Conversa
 	if err := r.fsm.SetStep(userID, nextStep); err != nil {
 		slog.Error("Failed to update conversation step", "error", err)
 		if err := r.fsm.ResetState(ctx, userID); err != nil {
-			slog.Error("Fatal redis error when clearing conversation state", "error", err)
+			slog.Error("Fatal error when clearing conversation state", "error", err)
 		}
 		return err
 	}
@@ -114,20 +103,34 @@ func (r *Router) Transition(ctx context.Context, userID int64, nextStep Conversa
 	if err := r.fsm.UpdateData(ctx, userID, data); err != nil {
 		slog.Error("Failed to update conversation data", "error", err, "service")
 		if err := r.fsm.ResetState(ctx, userID); err != nil {
-			slog.Error("Fatal redis error when clearing conversation state", "error", err, "service")
+			slog.Error("Fatal error when clearing conversation state", "error", err, "service")
 		}
 		return err
 	}
 	return nil
 }
 
+func (r *Router) tryBlock(userID int64, ctx context.Context, b *bot.Bot, update *models.Update) bool {
+	value, exists := r.pendingUsers.Load(userID)
+	if exists {
+		msg := value.(string)
+		func(ctx context.Context, b *bot.Bot, update *models.Update) {
+			if _, err := b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    userID,
+				Text:      msg,
+				ParseMode: models.ParseModeHTML,
+			}); err != nil {
+				slog.Error("Failed to send pending message", "error", err, "userID", userID)
+			}
+		}(ctx, b, update)
+	}
+	return exists
+}
+
 func (r *Router) Freeze(userID int64, msg string) {
-	r.pendingUsers[userID] = msg
-	slog.Info("Freeze", userID, msg)
+	r.pendingUsers.Store(userID, msg)
 }
 
 func (r *Router) Unfreeze(userID int64) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.pendingUsers, userID)
+	r.pendingUsers.Delete(userID)
 }

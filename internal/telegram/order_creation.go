@@ -9,7 +9,6 @@ import (
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
 	"print3d-order-bot/internal/telegram/internal/presentation"
-	"strconv"
 	"strings"
 	"time"
 
@@ -228,6 +227,7 @@ func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, updat
 			ChatID:    userID,
 			MessageID: msgID,
 			Text:      presentation.DownloadResultMsg(downloadErrors),
+			ParseMode: models.ParseModeHTML,
 		})
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		if err := b.orderService.AddFilesToOrder(ctx, newData.OrdersIDs[newData.CurrentIdx], orderFiles); err != nil {
@@ -307,7 +307,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 	userID := update.Message.From.ID
 
 	costStr := update.Message.Text
-	cost, err := strconv.ParseFloat(costStr, 32)
+	cost, err := presentation.ParseRUB(costStr)
 	if err != nil {
 		b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, state.Data)
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -315,6 +315,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 			Text:      presentation.CostValidationErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
+		return
 	}
 
 	newData, ok := state.Data.(*fsm.OrderData)
@@ -327,7 +328,7 @@ func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.
 		})
 		return
 	}
-	newData.Cost = float32(cost)
+	newData.Cost = cost
 
 	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderComments, newData)
 	b.SendMessage(ctx, &bot.SendMessageParams{
@@ -407,12 +408,8 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		})
 		return
 	}
-	slog.Info("1")
 	b.router.Freeze(userID, presentation.PendingDownloadMsg())
-	slog.Info("2")
 	defer b.router.Unfreeze(userID)
-
-	slog.Info("reached")
 
 	newData, ok := state.Data.(*fsm.OrderData)
 	if !ok {
@@ -480,6 +477,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		ChatID:    userID,
 		MessageID: msgID,
 		Text:      presentation.DownloadResultMsg(downloadErrors),
+		ParseMode: models.ParseModeHTML,
 	})
 
 	data := orderSvc.RequestOrder{
@@ -493,6 +491,9 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 	}
 
 	if err := b.orderService.NewOrder(ctx, data, orderFiles); err != nil {
+		if err := b.fileService.DeleteFolder(folderPath); err != nil {
+			slog.Error(err.Error())
+		}
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,

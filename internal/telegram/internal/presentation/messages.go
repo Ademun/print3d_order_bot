@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
-	"strconv"
 	"strings"
 )
 
@@ -84,7 +83,7 @@ func NewOrderPreviewMsg(data *fsm.OrderData) string {
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("<b>👤 Клиент: %s</b>", data.ClientName))
 	sb.WriteString(breakLine(2))
-	costStr := strconv.FormatFloat(float64(data.Cost), 'f', -1, 64)
+	costStr := FormatRUB(data.Cost)
 	sb.WriteString(fmt.Sprintf("<b>💲 Стоимость заказа %s₽</b>", costStr))
 	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
@@ -137,7 +136,7 @@ func OrderViewMsg(data *order.ResponseOrder) string {
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("<b>👤 Клиент: %s</b>", data.ClientName))
 	sb.WriteString(breakLine(2))
-	costStr := strconv.FormatFloat(float64(data.Cost), 'f', -1, 64)
+	costStr := FormatRUB(data.Cost)
 	sb.WriteString(fmt.Sprintf("<b>💲 Стоимость заказа %s₽</b>", costStr))
 	if len(data.Comments) > 0 {
 		sb.WriteString(breakLine(2))
