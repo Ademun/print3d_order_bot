@@ -48,7 +48,7 @@ type ResponseOrder struct {
 	Files      []File
 }
 
-type DBOrder struct {
+type DBNewOrder struct {
 	ID         int        `db:"id"`
 	Status     Status     `db:"status"`
 	ClientName string     `db:"client_name"`
@@ -59,6 +59,13 @@ type DBOrder struct {
 	CreatedAt  time.Time  `db:"created_at"`
 	ClosedAt   *time.Time `db:"closed_at"`
 	FolderPath string     `db:"folder_path"`
+}
+
+type DBEditOrder struct {
+	ID         int      `db:"id"`
+	ClientName *string  `db:"client_name"`
+	Cost       *float32 `db:"cost"`
+	Comments   []string
 }
 
 type DBFile struct {

@@ -31,7 +31,7 @@ func NewDefaultService(repo Repo) Service {
 }
 
 func (d *DefaultService) NewOrder(ctx context.Context, order RequestNewOrder, files []File) error {
-	dbOrder := DBOrder{
+	dbOrder := DBNewOrder{
 		Status:     StatusActive,
 		ClientName: order.ClientName,
 		Cost:       order.Cost,

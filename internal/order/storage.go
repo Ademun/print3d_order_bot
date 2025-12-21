@@ -12,11 +12,11 @@ import (
 )
 
 type Repo interface {
-	NewOrder(ctx context.Context, order DBOrder, files []DBFile) error
+	NewOrder(ctx context.Context, order DBNewOrder, files []DBFile) error
 	AddFilesToOrder(ctx context.Context, orderID int, files []DBFile) error
 	GetOrdersIDs(ctx context.Context, getActive bool) ([]int, error)
 	GetOrdersFolders(ctx context.Context, getActive bool) ([]string, error)
-	GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error)
+	GetOrderByID(ctx context.Context, orderID int) (*DBNewOrder, error)
 	UpdateOrderStatus(ctx context.Context, orderID int, status Status) error
 	DeleteOrder(ctx context.Context, orderID int) error
 	GetOrderFiles(ctx context.Context, orderID int) ([]DBFile, error)
@@ -37,7 +37,7 @@ func NewDefaultRepo(pool *pgxpool.Pool) Repo {
 	}
 }
 
-func (d *DefaultRepo) NewOrder(ctx context.Context, order DBOrder, files []DBFile) error {
+func (d *DefaultRepo) NewOrder(ctx context.Context, order DBNewOrder, files []DBFile) error {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return &pkg.ErrDBProcedure{
@@ -84,7 +84,7 @@ func (d *DefaultRepo) NewOrder(ctx context.Context, order DBOrder, files []DBFil
 	return nil
 }
 
-func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, tx pgx.Tx) (int, error) {
+func (d *DefaultRepo) insertOrder(ctx context.Context, order DBNewOrder, tx pgx.Tx) (int, error) {
 	stmt := d.builder.Insert("orders").
 		Columns("status, client_name, cost, comments, contacts, links, created_at, folder_path").
 		Values(order.Status, order.ClientName, order.Cost, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
@@ -232,7 +232,7 @@ func (d *DefaultRepo) GetOrdersFolders(ctx context.Context, getActive bool) ([]s
 	return paths, nil
 }
 
-func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, error) {
+func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBNewOrder, error) {
 	stmt := d.builder.Select("*").From("orders").Where(squirrel.Eq{"id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
@@ -243,7 +243,7 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBOrder, 
 		}
 	}
 
-	var order DBOrder
+	var order DBNewOrder
 	if err := d.pool.QueryRow(ctx, query, args...).Scan(&order.ID, &order.Status, &order.ClientName, &order.Cost, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order",
