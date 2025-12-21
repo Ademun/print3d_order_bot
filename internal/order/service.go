@@ -8,7 +8,7 @@ import (
 )
 
 type Service interface {
-	NewOrder(ctx context.Context, order RequestOrder, files []File) error
+	NewOrder(ctx context.Context, order RequestNewOrder, files []File) error
 	AddFilesToOrder(ctx context.Context, orderID int, files []File) error
 	GetOrderFilenames(ctx context.Context, orderID int) ([]string, error)
 	GetActiveOrdersIDs(ctx context.Context) ([]int, error)
@@ -30,7 +30,7 @@ func NewDefaultService(repo Repo) Service {
 	}
 }
 
-func (d *DefaultService) NewOrder(ctx context.Context, order RequestOrder, files []File) error {
+func (d *DefaultService) NewOrder(ctx context.Context, order RequestNewOrder, files []File) error {
 	dbOrder := DBOrder{
 		Status:     StatusActive,
 		ClientName: order.ClientName,

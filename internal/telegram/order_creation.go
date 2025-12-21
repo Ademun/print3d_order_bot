@@ -487,7 +487,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		ParseMode: models.ParseModeHTML,
 	})
 
-	data := orderSvc.RequestOrder{
+	data := orderSvc.RequestNewOrder{
 		ClientName: newData.ClientName,
 		Cost:       newData.Cost,
 		Comments:   newData.Comments,
