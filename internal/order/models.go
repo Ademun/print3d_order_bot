@@ -10,7 +10,7 @@ type File struct {
 	TgFileID *string
 }
 
-type RequestOrder struct {
+type RequestNewOrder struct {
 	ClientName string
 	Cost       float32
 	Comments   []string
@@ -18,6 +18,13 @@ type RequestOrder struct {
 	Links      []string
 	CreatedAt  time.Time
 	FolderPath string
+}
+
+type RequestEditOrder struct {
+	ClientName       *string
+	Cost             *float32
+	Comments         []string
+	OverrideComments *bool
 }
 
 type Status string
