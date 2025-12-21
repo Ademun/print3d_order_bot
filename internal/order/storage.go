@@ -52,6 +52,10 @@ func (d *DefaultRepo) NewOrder(ctx context.Context, order DBOrder, files []DBFil
 		return err
 	}
 
+	if len(files) == 0 {
+		return nil
+	}
+
 	builder := d.builder.Insert("order_files").
 		Columns("name", "checksum", "tg_file_id", "order_id")
 	for _, file := range files {
@@ -109,6 +113,9 @@ func (d *DefaultRepo) insertOrder(ctx context.Context, order DBOrder, tx pgx.Tx)
 }
 
 func (d *DefaultRepo) AddFilesToOrder(ctx context.Context, orderID int, files []DBFile) error {
+	if len(files) == 0 {
+		return nil
+	}
 	builder := d.builder.Insert("order_files").
 		Columns("name", "checksum", "tg_file_id", "order_id")
 	for _, file := range files {
@@ -369,6 +376,9 @@ func (d *DefaultRepo) GetOrderFilenames(ctx context.Context, orderID int) ([]str
 }
 
 func (d *DefaultRepo) DeleteOrderFiles(ctx context.Context, orderID int, filenames []string) error {
+	if len(filenames) == 0 {
+		return nil
+	}
 	stmt := d.builder.Delete("order_files").
 		Where(squirrel.And{
 			squirrel.Eq{"order_id": orderID},
@@ -394,6 +404,9 @@ func (d *DefaultRepo) DeleteOrderFiles(ctx context.Context, orderID int, filenam
 }
 
 func (d *DefaultRepo) UpdateOrderFiles(ctx context.Context, orderID int, files []DBFile) error {
+	if len(files) == 0 {
+		return nil
+	}
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return &pkg.ErrDBProcedure{

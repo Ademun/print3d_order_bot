@@ -39,6 +39,7 @@ func (d *DefaultService) NewOrder(ctx context.Context, order RequestOrder, files
 		Contacts:   order.Contacts,
 		Links:      order.Links,
 		CreatedAt:  order.CreatedAt,
+		FolderPath: order.FolderPath,
 	}
 
 	dbFiles := make([]DBFile, len(files))

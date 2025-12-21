@@ -128,7 +128,6 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 
 func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
 	dst := filepath.Join(d.cfg.DirPath, folderPath)
-
 	entries, err := os.ReadDir(dst)
 	if err != nil {
 		return nil, &ErrReadDir{Err: err}
