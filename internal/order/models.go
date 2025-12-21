@@ -62,10 +62,11 @@ type DBNewOrder struct {
 }
 
 type DBEditOrder struct {
-	ID         int      `db:"id"`
-	ClientName *string  `db:"client_name"`
-	Cost       *float32 `db:"cost"`
-	Comments   []string
+	ID               int      `db:"id"`
+	ClientName       *string  `db:"client_name"`
+	Cost             *float32 `db:"cost"`
+	Comments         []string
+	OverrideComments *bool
 }
 
 type DBFile struct {
