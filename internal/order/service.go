@@ -16,6 +16,7 @@ type Service interface {
 	GetOrderByID(ctx context.Context, orderID int) (*ResponseOrder, error)
 	CloseOrder(ctx context.Context, orderID int) error
 	RestoreOrder(ctx context.Context, orderID int) error
+	EditOrder(ctx context.Context, orderID int, order RequestEditOrder) error
 	RemoveOrderFiles(ctx context.Context, orderID int, filenames []string) error
 	UpdateOrderFiles(ctx context.Context, orderID int, files []File) error
 }
@@ -167,6 +168,21 @@ func (d *DefaultService) RestoreOrder(ctx context.Context, orderID int) error {
 	}
 	if err := d.repo.UpdateOrderStatus(ctx, orderID, StatusActive); err != nil {
 		slog.Error("Error restoring order", "error", err, "orderID", orderID)
+		return err
+	}
+	return nil
+}
+
+func (d *DefaultService) EditOrder(ctx context.Context, orderID int, order RequestEditOrder) error {
+	dbOrder := DBEditOrder{
+		ID:               orderID,
+		ClientName:       order.ClientName,
+		Cost:             order.Cost,
+		Comments:         order.Comments,
+		OverrideComments: order.OverrideComments,
+	}
+	if err := d.repo.EditOrder(ctx, dbOrder); err != nil {
+		slog.Error("Error editing order", "error", err, "orderID", orderID)
 		return err
 	}
 	return nil
