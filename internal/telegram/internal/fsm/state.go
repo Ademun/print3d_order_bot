@@ -13,6 +13,10 @@ const (
 	StepAwaitingNewOrderConfirmation
 	StepAwaitingOrderSelectSliderAction
 	StepAwaitingOrderViewSliderAction
+	StepAwaitingEditName
+	StepAwaitingEditCost
+	StepAwaitingEditComments
+	StepAwaitingEditOverrideComments
 )
 
 type StateData interface {
