@@ -43,3 +43,10 @@ type OrderSliderData struct {
 }
 
 func (data *OrderSliderData) StateData() {}
+
+type OrderEditData struct {
+	ClientName       *string
+	Cost             *float32
+	Comments         []string
+	OverrideComments *bool
+}
