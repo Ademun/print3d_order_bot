@@ -54,3 +54,5 @@ type OrderEditData struct {
 	Comments         []string
 	OverrideComments *bool
 }
+
+func (data *OrderEditData) StateData() {}

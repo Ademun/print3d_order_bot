@@ -409,7 +409,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 	if action == "no" {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.NewOrderCancelledMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
@@ -422,8 +422,9 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 	if !ok {
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.CallbackQuery.Message.Message.Chat.ID,
-			Text:   presentation.StateConversionErrorMsg(),
+			ChatID:    userID,
+			Text:      presentation.StateConversionErrorMsg(),
+			ParseMode: models.ParseModeHTML,
 		})
 		return
 	}
@@ -503,7 +504,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 		}
 		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
+			ChatID:    userID,
 			Text:      presentation.OrderCreationErrorMsg(),
 			ParseMode: models.ParseModeHTML,
 		})
@@ -513,7 +514,7 @@ func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, upda
 	disablePreview := true
 	b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
 	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.CallbackQuery.Message.Message.Chat.ID,
+		ChatID: userID,
 		Text:   presentation.NewOrderCreatedMsg(),
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &disablePreview,
