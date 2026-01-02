@@ -39,6 +39,14 @@ func OrderRestoreErrorMsg() string {
 	return "<b>❌ Не удалось восстановить заказ. Попробуйте позже</b>"
 }
 
+func OrderEditErrorMsg() string {
+	return "<b>❌ Не удалось отредактировать заказ. Попробуйте позже</b>"
+}
+
+func OrderEditedMsg() string {
+	return "<b>✔️ Информация о заказе обновлена</b>"
+}
+
 func FilesLoadErrorMsg() string {
 	return "<b>❌ Не удалось загрузить файлы заказа. Попробуйте позже</b>"
 }
@@ -77,6 +85,10 @@ func CostValidationErrorMsg() string {
 
 func AskOrderCommentsMsg() string {
 	return "<b>💬 Введите комментарий к заказу</b>"
+}
+
+func AskOrderCommentsOverrideMsg() string {
+	return "<b>Перезаписать комментарии новыми?</b>"
 }
 
 func AskOrderSelectionMsg() string {

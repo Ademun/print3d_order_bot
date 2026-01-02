@@ -153,6 +153,18 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		}
 
 		return
+	case "edit":
+		data := &fsm.OrderEditData{
+			OrderID: newData.OrdersIDs[newData.CurrentIdx],
+		}
+		b.tryTransition(ctx, userID, fsm.StepAwaitingEditName, data)
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:      userID,
+			Text:        presentation.AskClientNameMsg(),
+			ParseMode:   models.ParseModeHTML,
+			ReplyMarkup: presentation.SkipKbd(),
+		})
+		return
 	default:
 		return
 	}
