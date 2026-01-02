@@ -285,18 +285,18 @@ func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status
 }
 
 func (d *DefaultRepo) EditOrder(ctx context.Context, order DBEditOrder) error {
-	stmt := d.builder.Update("order").Where(squirrel.Eq{"id": order.ID})
+	stmt := d.builder.Update("orders").Where(squirrel.Eq{"id": order.ID})
 	if order.ClientName != nil {
-		stmt.Set("client_name", *order.ClientName)
+		stmt = stmt.Set("client_name", *order.ClientName)
 	}
 	if order.Cost != nil {
-		stmt.Set("cost", *order.Cost)
+		stmt = stmt.Set("cost", *order.Cost)
 	}
 	if order.Comments != nil && order.OverrideComments != nil {
 		if *order.OverrideComments == true {
-			stmt.Set("comments", order.Comments)
+			stmt = stmt.Set("comments", order.Comments)
 		} else {
-			stmt.Set("comments", squirrel.Expr("array_cat(comments, ?)", order.Comments))
+			stmt = stmt.Set("comments", squirrel.Expr("array_cat(comments, ?)", order.Comments))
 		}
 	}
 	query, args, err := stmt.ToSql()
@@ -338,7 +338,7 @@ func (d *DefaultRepo) DeleteOrder(ctx context.Context, orderID int) error {
 }
 
 func (d *DefaultRepo) GetOrderFiles(ctx context.Context, orderID int) ([]DBFile, error) {
-	stmt := d.builder.Select("*").From("order_files").Where(squirrel.Eq{"id": orderID})
+	stmt := d.builder.Select("*").From("order_files").Where(squirrel.Eq{"order_id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
