@@ -1,7 +1,6 @@
 package fsm
 
 import (
-	"context"
 	"sync"
 )
 
@@ -22,7 +21,7 @@ func NewFSM() *FSM {
 	}
 }
 
-func (f *FSM) GetOrCreateState(userID int64) (State, error) {
+func (f *FSM) GetOrCreateState(userID int64) State {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -35,7 +34,7 @@ func (f *FSM) GetOrCreateState(userID int64) (State, error) {
 		f.states[userID] = state
 	}
 
-	return state, nil
+	return state
 }
 
 func (f *FSM) SetState(userID int64, state State) {
@@ -45,39 +44,24 @@ func (f *FSM) SetState(userID int64, state State) {
 	f.states[userID] = state
 }
 
-func (f *FSM) SetStep(userID int64, step ConversationStep) error {
-	state, err := f.GetOrCreateState(userID)
-	if err != nil {
-		return err
-	}
+func (f *FSM) SetStep(userID int64, step ConversationStep) {
+	state := f.GetOrCreateState(userID)
 
 	state.Step = step
 	f.SetState(userID, state)
-
-	return nil
 }
 
-func (f *FSM) UpdateData(ctx context.Context, userID int64, data StateData) error {
-	state, err := f.GetOrCreateState(userID)
-	if err != nil {
-		return err
-	}
+func (f *FSM) UpdateData(userID int64, data StateData) {
+	state := f.GetOrCreateState(userID)
 
 	state.Data = data
 	f.SetState(userID, state)
-
-	return nil
 }
 
-func (f *FSM) ResetState(ctx context.Context, userID int64) error {
-	state, err := f.GetOrCreateState(userID)
-	if err != nil {
-		return err
-	}
+func (f *FSM) ResetState(userID int64) {
+	state := f.GetOrCreateState(userID)
 
 	state.Step = StepIdle
 	state.Data = &IdleData{}
 	f.SetState(userID, state)
-
-	return nil
 }
