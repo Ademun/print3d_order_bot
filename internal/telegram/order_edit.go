@@ -7,8 +7,13 @@ import (
 	"strings"
 )
 
-func SetupOrderEditFlow(router *fsm.Router, orderService order.Service) {
-	fsm.Chain[*fsm.OrderEditData](router, "order_edit", fsm.StepAwaitingEditName).
+type OrderEditFlowDeps struct {
+	Router       *fsm.Router
+	OrderService *order.Service
+}
+
+func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
+	fsm.Chain[*fsm.OrderEditData](deps.Router, "order_edit", fsm.StepAwaitingEditName).
 		OnText(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], text string) error {
 			ctx.Data.ClientName = &text
 			ctx.Transition(fsm.StepAwaitingEditCost, ctx.Data)
@@ -54,7 +59,7 @@ func SetupOrderEditFlow(router *fsm.Router, orderService order.Service) {
 		}).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
 			if data == "skip" {
-				return finalizeOrderEdit(ctx, orderService)
+				return finalizeOrderEdit(ctx, *deps.OrderService)
 			}
 			return nil
 		}).
@@ -62,7 +67,7 @@ func SetupOrderEditFlow(router *fsm.Router, orderService order.Service) {
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
 			override := data == "yes"
 			ctx.Data.OverrideComments = &override
-			return finalizeOrderEdit(ctx, orderService)
+			return finalizeOrderEdit(ctx, *deps.OrderService)
 		})
 }
 
