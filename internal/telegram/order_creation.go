@@ -1,9 +1,7 @@
 package telegram
 
 import (
-	"context"
 	"errors"
-	"log/slog"
 	fileSvc "print3d-order-bot/internal/file"
 	orderSvc "print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
@@ -16,519 +14,326 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-func (b *Bot) handleOrderCreation(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.Message == nil {
-		return
-	}
-	userID := update.Message.From.ID
-
-	b.collector.ProcessMessage(update.Message, func(window *media.Window) {
-		data, ok := state.Data.(*fsm.OrderData)
-		if ok {
-			newData := &fsm.OrderData{
-				UserID:     data.UserID,
-				ClientName: data.ClientName,
-				Comments:   data.Comments,
-				Contacts:   append(data.Contacts, window.Contacts...),
-				Links:      append(data.Links, window.Links...),
-				Files:      append(data.Files, window.Media...),
-			}
-			b.tryTransition(ctx, userID, state.Step, newData)
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    userID,
-				Text:      presentation.AddedDataToOrderMsg(),
-				ParseMode: models.ParseModeHTML,
-			})
-			return
-		}
-
-		newData := &fsm.OrderData{
-			UserID:   userID,
-			Files:    window.Media,
-			Contacts: window.Contacts,
-			Links:    window.Links,
-		}
-		b.tryTransition(ctx, userID, fsm.StepAwaitingOrderType, newData)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:      userID,
-			Text:        presentation.AskOrderTypeMsg(),
-			ReplyMarkup: presentation.OrderTypeKbd(),
-			ParseMode:   models.ParseModeHTML,
-		})
-	})
+type OrderCreationDeps struct {
+	Router       *fsm.Router
+	Collector    *media.Collector
+	OrderService orderSvc.Service
+	FileService  fileSvc.Service
 }
 
-func (b *Bot) handleOrderType(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.CallbackQuery == nil {
-		return
-	}
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-	})
-	userID := update.CallbackQuery.From.ID
-	orderType := update.CallbackQuery.Data
-
-	if orderType == "new_order" {
-		b.tryTransition(ctx, userID, fsm.StepAwaitingClientName, state.Data)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.AskClientNameMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	newData, ok := state.Data.(*fsm.OrderData)
-	if !ok {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StateConversionErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
-	if err != nil {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.OrderIDsLoadErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	if len(ids) == 0 {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.EmptyOrderListMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	newData.OrdersIDs = ids
-	newData.CurrentIdx = 0
-
-	order, err := b.orderService.GetOrderByID(ctx, ids[0])
-	if err != nil {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.OrderLoadErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSelectSliderAction, state.Data)
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    userID,
-		Text:      presentation.AskOrderSelectionMsg(),
-		ParseMode: models.ParseModeHTML,
-	})
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      userID,
-		Text:        presentation.OrderViewMsg(order),
-		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(ids), 0),
-		ParseMode:   models.ParseModeHTML,
-	})
-}
-
-func (b *Bot) handleOrderSelectorAction(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.CallbackQuery == nil {
-		return
-	}
-	userID := update.CallbackQuery.From.ID
-
-	sliderAction := update.CallbackQuery.Data
-
-	newData, ok := state.Data.(*fsm.OrderData)
-	if !ok {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StateConversionErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	switch sliderAction {
-	case "previous":
-		if newData.CurrentIdx > 0 {
-			newData.CurrentIdx--
-		}
-	case "next":
-		if newData.CurrentIdx < len(newData.OrdersIDs)-1 {
-			newData.CurrentIdx++
-		}
-	case "select":
-		b.router.Freeze(userID, presentation.PendingDownloadMsg())
-		defer b.router.Unfreeze(userID)
-		filesToDownload := make([]fileSvc.RequestFile, len(newData.Files))
-		for i, f := range newData.Files {
-			filesToDownload[i] = fileSvc.RequestFile{
-				Name:     f.Name,
-				TGFileID: f.TGFileID,
-			}
+func SetupOrderCreationFlow(deps *OrderCreationDeps) {
+	deps.Router.RegisterHandler(fsm.StepIdle, func(ctx *fsm.ConversationContext[fsm.StateData]) error {
+		if ctx.Update.Message == nil {
+			return nil
 		}
 
-		msgID := b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
-			ParseMode: models.ParseModeHTML,
-		})
+		deps.Collector.ProcessMessage(ctx.Update.Message, func(window *media.Window) {
+			data, ok := ctx.Data.(*fsm.OrderData)
+			var newData *fsm.OrderData
 
-		order, err := b.orderService.GetOrderByID(ctx, msgID)
-		if err != nil {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    userID,
-				Text:      presentation.OrderLoadErrorMsg(),
-				ParseMode: models.ParseModeHTML,
-			})
-			return
-		}
-
-		downloaded := b.fileService.DownloadAndSave(ctx, order.FolderPath, filesToDownload)
-		orderFiles := make([]orderSvc.File, 0, len(filesToDownload))
-		downloadErrors := make(map[string]string)
-		for result := range downloaded {
-			if result.Err != nil {
-				var err string
-				var pathPrepErr *fileSvc.ErrPrepareFilepath
-				var downloadErr *fileSvc.ErrDownloadFailed
-				if errors.Is(result.Err, fileSvc.ErrFileExists) {
-					err = "Файл уже существует"
-				} else if errors.Is(result.Err, fileSvc.ErrCalculateChecksum) {
-					err = "Не удалось проверить целостность файла"
-				} else if errors.As(result.Err, &pathPrepErr) {
-					err = "Не удалось подготовить путь для загрузки файла"
-				} else if errors.As(result.Err, &downloadErr) {
-					err = "Не удалось загрузить файл. Попробуйте уменьшить его размер"
-				} else {
-					err = "Неизвестная ошибка. Свяжитесь с разработчиком для устранения"
+			if ok {
+				newData = &fsm.OrderData{
+					UserID:     data.UserID,
+					ClientName: data.ClientName,
+					Comments:   data.Comments,
+					Contacts:   append(data.Contacts, window.Contacts...),
+					Links:      append(data.Links, window.Links...),
+					Files:      append(data.Files, window.Media...),
 				}
-				downloadErrors[result.Result.Name] = err
-
-				continue
+			} else {
+				newData = &fsm.OrderData{
+					UserID:   ctx.UserID,
+					Files:    window.Media,
+					Contacts: window.Contacts,
+					Links:    window.Links,
+				}
 			}
-			orderFiles = append(orderFiles, orderSvc.File{
-				Name:     result.Result.Name,
-				Checksum: result.Result.Checksum,
-				TgFileID: &result.Result.TGFileID,
-			})
-			b.EditMessageText(ctx, &bot.EditMessageTextParams{
-				ChatID:    userID,
-				MessageID: msgID,
-				Text:      presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total),
-				ParseMode: models.ParseModeHTML,
-			})
-		}
-		b.EditMessageText(ctx, &bot.EditMessageTextParams{
-			ChatID:    userID,
-			MessageID: msgID,
-			Text:      presentation.DownloadResultMsg(downloadErrors),
-			ParseMode: models.ParseModeHTML,
-		})
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		if err := b.orderService.AddFilesToOrder(ctx, newData.OrdersIDs[newData.CurrentIdx], orderFiles); err != nil {
-			b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    userID,
-				Text:      presentation.AddFilesToOrderWarningMsg(),
-				ParseMode: models.ParseModeHTML,
-			})
-			return
-		}
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.AddedDataToOrderMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	default:
-		return
-	}
 
-	order, err := b.orderService.GetOrderByID(ctx, newData.OrdersIDs[newData.CurrentIdx])
-	if err != nil {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.OrderLoadErrorMsg(),
-			ParseMode: models.ParseModeHTML,
+			ctx.Transition(fsm.StepAwaitingOrderType, newData)
+			if err := ctx.SendMessage(
+				presentation.AskOrderTypeMsg(),
+				presentation.OrderTypeKbd(),
+			); err != nil {
+				return
+			}
 		})
-		return
+
+		return nil
+	})
+
+	fsm.Chain[*fsm.OrderData](deps.Router, "order_creation", fsm.StepAwaitingOrderType).
+		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if data == "new_order" {
+				ctx.Transition(fsm.StepAwaitingClientName, ctx.Data)
+				return ctx.SendMessage(presentation.AskClientNameMsg(), nil)
+			}
+
+			ids, err := deps.OrderService.GetActiveOrdersIDs(ctx.Ctx)
+			if err != nil {
+				return ctx.Complete(presentation.OrderIDsLoadErrorMsg())
+			}
+
+			if len(ids) == 0 {
+				return ctx.Complete(presentation.EmptyOrderListMsg())
+			}
+
+			ctx.Data.OrdersIDs = ids
+			ctx.Data.CurrentIdx = 0
+
+			order, err := deps.OrderService.GetOrderByID(ctx.Ctx, ids[0])
+			if err != nil {
+				return ctx.Complete(presentation.OrderLoadErrorMsg())
+			}
+
+			ctx.Transition(fsm.StepAwaitingOrderSelectSliderAction, ctx.Data)
+			if err := ctx.SendMessage(presentation.AskOrderSelectionMsg(), nil); err != nil {
+				return err
+			}
+			return ctx.SendMessage(
+				presentation.OrderViewMsg(order),
+				presentation.OrderSliderSelectorKbd(len(ids), 0),
+			)
+		}).
+		Then(fsm.StepAwaitingOrderSelectSliderAction).
+		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			switch data {
+			case "previous":
+				if ctx.Data.CurrentIdx > 0 {
+					ctx.Data.CurrentIdx--
+				}
+				return updateOrderSelector(ctx, deps)
+
+			case "next":
+				if ctx.Data.CurrentIdx < len(ctx.Data.OrdersIDs)-1 {
+					ctx.Data.CurrentIdx++
+				}
+				return updateOrderSelector(ctx, deps)
+
+			case "select":
+				return finalizeAddToOrder(ctx, deps)
+
+			default:
+				return nil
+			}
+		}).
+
+		// Client name
+		Then(fsm.StepAwaitingClientName).
+		OnText(func(ctx *fsm.ConversationContext[*fsm.OrderData], text string) error {
+			ctx.Data.ClientName = strings.TrimSpace(text)
+			ctx.Transition(fsm.StepAwaitingOrderCost, ctx.Data)
+			return ctx.SendMessage(presentation.AskOrderCostMsg(), nil)
+		}).
+
+		// Order cost
+		Then(fsm.StepAwaitingOrderCost).
+		OnText(func(ctx *fsm.ConversationContext[*fsm.OrderData], text string) error {
+			cost, err := presentation.ParseRUB(text)
+			if err != nil {
+				return ctx.SendMessage(presentation.CostValidationErrorMsg(), nil)
+			}
+
+			ctx.Data.Cost = cost
+			ctx.Transition(fsm.StepAwaitingOrderComments, ctx.Data)
+			return ctx.SendMessage(
+				presentation.AskOrderCommentsMsg(),
+				presentation.SkipKbd(),
+			)
+		}).
+
+		// Order comments
+		Then(fsm.StepAwaitingOrderComments).
+		OnText(func(ctx *fsm.ConversationContext[*fsm.OrderData], text string) error {
+			comments := strings.TrimSpace(text)
+			ctx.Data.Comments = []string{comments}
+
+			ctx.Transition(fsm.StepAwaitingNewOrderConfirmation, ctx.Data)
+			return ctx.SendMessage(
+				presentation.NewOrderPreviewMsg(ctx.Data),
+				presentation.YesNoKbd(),
+			)
+		}).
+		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if data == "skip" {
+				ctx.Data.Comments = make([]string, 0)
+				ctx.Transition(fsm.StepAwaitingNewOrderConfirmation, ctx.Data)
+				return ctx.SendMessage(
+					presentation.NewOrderPreviewMsg(ctx.Data),
+					presentation.YesNoKbd(),
+				)
+			}
+			return nil
+		}).
+
+		// New order confirmation
+		Then(fsm.StepAwaitingNewOrderConfirmation).
+		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if data == "no" {
+				return ctx.Complete(presentation.NewOrderCancelledMsg())
+			}
+
+			return finalizeNewOrder(ctx, deps)
+		})
+}
+
+func updateOrderSelector(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderCreationDeps) error {
+	order, err := deps.OrderService.GetOrderByID(ctx.Ctx, ctx.Data.OrdersIDs[ctx.Data.CurrentIdx])
+	if err != nil {
+		return ctx.Complete(presentation.OrderLoadErrorMsg())
 	}
 
 	disablePreview := true
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderSelectSliderAction, newData)
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:      userID,
-		MessageID:   update.CallbackQuery.Message.Message.ID,
+	ctx.Transition(fsm.StepAwaitingOrderSelectSliderAction, ctx.Data)
+	_, err = ctx.Bot.EditMessageText(ctx.Ctx, &bot.EditMessageTextParams{
+		ChatID:      ctx.UserID,
+		MessageID:   ctx.Update.CallbackQuery.Message.Message.ID,
 		Text:        presentation.OrderViewMsg(order),
-		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(newData.OrdersIDs), newData.CurrentIdx),
+		ReplyMarkup: presentation.OrderSliderSelectorKbd(len(ctx.Data.OrdersIDs), ctx.Data.CurrentIdx),
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &disablePreview,
 		},
 		ParseMode: models.ParseModeHTML,
 	})
+	return err
 }
 
-func (b *Bot) handleClientName(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.Message == nil {
-		return
-	}
-	userID := update.Message.From.ID
-	clientName := strings.TrimSpace(update.Message.Text)
+func finalizeAddToOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderCreationDeps) error {
+	deps.Router.Freeze(ctx.UserID, presentation.PendingDownloadMsg())
+	defer deps.Router.Unfreeze(ctx.UserID)
 
-	newData, ok := state.Data.(*fsm.OrderData)
-	if !ok {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StateConversionErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-	newData.ClientName = clientName
-
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, newData)
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    userID,
-		Text:      presentation.AskOrderCostMsg(),
-		ParseMode: models.ParseModeHTML,
-	})
-}
-
-func (b *Bot) handleOrderCost(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.Message == nil {
-		return
-	}
-	userID := update.Message.From.ID
-
-	costStr := update.Message.Text
-	cost, err := presentation.ParseRUB(costStr)
+	order, err := deps.OrderService.GetOrderByID(ctx.Ctx, ctx.Data.OrdersIDs[ctx.Data.CurrentIdx])
 	if err != nil {
-		b.tryTransition(ctx, userID, fsm.StepAwaitingOrderCost, state.Data)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.CostValidationErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
+		return ctx.Complete(presentation.OrderLoadErrorMsg())
 	}
 
-	newData, ok := state.Data.(*fsm.OrderData)
-	if !ok {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StateConversionErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-	newData.Cost = cost
-
-	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderComments, newData)
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      userID,
-		Text:        presentation.AskOrderCommentsMsg(),
-		ReplyMarkup: presentation.SkipKbd(),
-		ParseMode:   models.ParseModeHTML,
-	})
-}
-
-func (b *Bot) handleOrderComments(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.Message == nil && update.CallbackQuery == nil {
-		return
-	}
-
-	var userID int64
-	if update.Message != nil {
-		userID = update.Message.From.ID
-	} else if update.CallbackQuery != nil {
-		userID = update.CallbackQuery.From.ID
-		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-			CallbackQueryID: update.CallbackQuery.ID,
-		})
-	}
-
-	newData, ok := state.Data.(*fsm.OrderData)
-	if !ok {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StateConversionErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-	newData.Comments = make([]string, 0)
-
-	if shouldSkip(update) {
-		b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, state.Data)
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:      userID,
-			Text:        presentation.NewOrderPreviewMsg(newData),
-			ReplyMarkup: presentation.YesNoKbd(),
-			ParseMode:   models.ParseModeHTML,
-		})
-		return
-	}
-
-	comments := strings.TrimSpace(update.Message.Text)
-	newData.Comments = append(newData.Comments, comments)
-
-	b.tryTransition(ctx, userID, fsm.StepAwaitingNewOrderConfirmation, newData)
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:      userID,
-		Text:        presentation.NewOrderPreviewMsg(newData),
-		ReplyMarkup: presentation.YesNoKbd(),
-		ParseMode:   models.ParseModeHTML,
-	})
-}
-
-func (b *Bot) handleNewOrderConfirmation(ctx context.Context, api *bot.Bot, update *models.Update, state fsm.State) {
-	if update.CallbackQuery == nil {
-		return
-	}
-	b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
-		CallbackQueryID: update.CallbackQuery.ID,
-	})
-	userID := update.CallbackQuery.From.ID
-	action := update.CallbackQuery.Data
-
-	if action == "no" {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.NewOrderCancelledMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-	b.router.Freeze(userID, presentation.PendingDownloadMsg())
-	defer b.router.Unfreeze(userID)
-
-	newData, ok := state.Data.(*fsm.OrderData)
-	if !ok {
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.StateConversionErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
-	}
-
-	createdAt := time.Now()
-	folderPath := CreateFolderPath(newData.ClientName, createdAt, update.CallbackQuery.Message.Message.ID)
-
-	filesToDownload := make([]fileSvc.RequestFile, len(newData.Files))
-	for i, f := range newData.Files {
+	filesToDownload := make([]fileSvc.RequestFile, len(ctx.Data.Files))
+	for i, f := range ctx.Data.Files {
 		filesToDownload[i] = fileSvc.RequestFile{
 			Name:     f.Name,
 			TGFileID: f.TGFileID,
 		}
 	}
 
-	msgID := b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    userID,
+	msgID, _ := ctx.Bot.SendMessage(ctx.Ctx, &bot.SendMessageParams{
+		ChatID:    ctx.UserID,
 		Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
 		ParseMode: models.ParseModeHTML,
 	})
 
-	downloaded := b.fileService.DownloadAndSave(ctx, folderPath, filesToDownload)
+	downloaded := deps.FileService.DownloadAndSave(ctx.Ctx, order.FolderPath, filesToDownload)
 	orderFiles := make([]orderSvc.File, 0, len(filesToDownload))
 	downloadErrors := make(map[string]string)
+
 	for result := range downloaded {
 		if result.Err != nil {
-			var err string
-			var pathPrepErr *fileSvc.ErrPrepareFilepath
-			var downloadErr *fileSvc.ErrDownloadFailed
-			if errors.Is(result.Err, fileSvc.ErrFileExists) {
-				err = "Файл уже существует"
-			} else if errors.Is(result.Err, fileSvc.ErrCalculateChecksum) {
-				err = "Не удалось проверить целостность файла"
-			} else if errors.As(result.Err, &pathPrepErr) {
-				err = "Не удалось подготовить путь для загрузки файла"
-			} else if errors.As(result.Err, &downloadErr) {
-				err = "Не удалось загрузить файл. Попробуйте уменьшить его размер"
-			} else {
-				err = "Неизвестная ошибка. Свяжитесь с разработчиком для устранения"
-			}
-			downloadErrors[result.Result.Name] = err
-
+			downloadErrors[result.Result.Name] = formatDownloadError(result.Err)
 			continue
 		}
+
 		orderFiles = append(orderFiles, orderSvc.File{
 			Name:     result.Result.Name,
 			Checksum: result.Result.Checksum,
 			TgFileID: &result.Result.TGFileID,
 		})
-		b.EditMessageText(ctx, &bot.EditMessageTextParams{
-			ChatID:    userID,
-			MessageID: msgID,
-			Text:      presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total),
-			ParseMode: models.ParseModeHTML,
-		})
+
+		if err := ctx.EditMessageText(msgID.ID, presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total)); err != nil {
+			return err
+		}
 	}
-	b.EditMessageText(ctx, &bot.EditMessageTextParams{
-		ChatID:    userID,
-		MessageID: msgID,
-		Text:      presentation.DownloadResultMsg(downloadErrors),
+
+	if err := ctx.EditMessageText(msgID.ID, presentation.DownloadResultMsg(downloadErrors)); err != nil {
+		return err
+	}
+
+	if err := deps.OrderService.AddFilesToOrder(ctx.Ctx, ctx.Data.OrdersIDs[ctx.Data.CurrentIdx], orderFiles); err != nil {
+		return ctx.Complete(presentation.AddFilesToOrderWarningMsg())
+	}
+
+	return ctx.Complete(presentation.AddedDataToOrderMsg())
+}
+
+func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderCreationDeps) error {
+	deps.Router.Freeze(ctx.UserID, presentation.PendingDownloadMsg())
+	defer deps.Router.Unfreeze(ctx.UserID)
+
+	createdAt := time.Now()
+	folderPath := CreateFolderPath(ctx.Data.ClientName, createdAt, int(ctx.UserID))
+
+	filesToDownload := make([]fileSvc.RequestFile, len(ctx.Data.Files))
+	for i, f := range ctx.Data.Files {
+		filesToDownload[i] = fileSvc.RequestFile{
+			Name:     f.Name,
+			TGFileID: f.TGFileID,
+		}
+	}
+
+	msgID, _ := ctx.Bot.SendMessage(ctx.Ctx, &bot.SendMessageParams{
+		ChatID:    ctx.UserID,
+		Text:      presentation.StartingDownloadMsg(len(filesToDownload)),
 		ParseMode: models.ParseModeHTML,
 	})
 
+	downloaded := deps.FileService.DownloadAndSave(ctx.Ctx, folderPath, filesToDownload)
+	orderFiles := make([]orderSvc.File, 0, len(filesToDownload))
+	downloadErrors := make(map[string]string)
+
+	for result := range downloaded {
+		if result.Err != nil {
+			downloadErrors[result.Result.Name] = formatDownloadError(result.Err)
+			continue
+		}
+
+		orderFiles = append(orderFiles, orderSvc.File{
+			Name:     result.Result.Name,
+			Checksum: result.Result.Checksum,
+			TgFileID: &result.Result.TGFileID,
+		})
+
+		if err := ctx.EditMessageText(msgID.ID, presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total)); err != nil {
+			return err
+		}
+	}
+
+	if err := ctx.EditMessageText(msgID.ID, presentation.DownloadResultMsg(downloadErrors)); err != nil {
+		return err
+	}
+
 	data := orderSvc.RequestNewOrder{
-		ClientName: newData.ClientName,
-		Cost:       newData.Cost,
-		Comments:   newData.Comments,
-		Contacts:   newData.Contacts,
-		Links:      newData.Links,
+		ClientName: ctx.Data.ClientName,
+		Cost:       ctx.Data.Cost,
+		Comments:   ctx.Data.Comments,
+		Contacts:   ctx.Data.Contacts,
+		Links:      ctx.Data.Links,
 		CreatedAt:  createdAt,
 		FolderPath: folderPath,
 	}
 
-	if err := b.orderService.NewOrder(ctx, data, orderFiles); err != nil {
-		if err := b.fileService.DeleteFolder(folderPath); err != nil {
-			slog.Error(err.Error())
-		}
-		b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    userID,
-			Text:      presentation.OrderCreationErrorMsg(),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
+	if err := deps.OrderService.NewOrder(ctx.Ctx, data, orderFiles); err != nil {
+		_ = deps.FileService.DeleteFolder(folderPath)
+		return ctx.Complete(presentation.OrderCreationErrorMsg())
 	}
 
-	disablePreview := true
-	b.tryTransition(ctx, userID, fsm.StepIdle, &fsm.IdleData{})
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: userID,
-		Text:   presentation.NewOrderCreatedMsg(),
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: &disablePreview,
-		},
-		ParseMode: models.ParseModeHTML,
-	})
+	if err := ctx.SendMessage(presentation.NewOrderCreatedMsg(), nil); err != nil {
+		return err
+	}
+
+	return ctx.Complete("")
 }
 
-func shouldSkip(update *models.Update) bool {
-	if update.CallbackQuery == nil {
-		return false
+func formatDownloadError(err error) string {
+	var pathPrepErr *fileSvc.ErrPrepareFilepath
+	var downloadErr *fileSvc.ErrDownloadFailed
+
+	switch {
+	case errors.Is(err, fileSvc.ErrFileExists):
+		return "Файл уже существует"
+	case errors.Is(err, fileSvc.ErrCalculateChecksum):
+		return "Не удалось проверить целостность файла"
+	case errors.As(err, &pathPrepErr):
+		return "Не удалось подготовить путь для загрузки файла"
+	case errors.As(err, &downloadErr):
+		return "Не удалось загрузить файл. Попробуйте уменьшить его размер"
+	default:
+		return "Неизвестная ошибка. Свяжитесь с разработчиком для устранения"
 	}
-	if update.CallbackQuery.Data == "skip" {
-		return true
-	}
-	return false
 }
