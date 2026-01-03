@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"print3d-order-bot/internal/pkg/config"
+	"print3d-order-bot/pkg/config"
 	"sync"
 
 	"go.uber.org/atomic"
@@ -12,21 +12,20 @@ import (
 
 type Service interface {
 	CreateFolder(folderPath string) error
-	DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult
+	DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile, downloader Downloader) chan DownloadResult
 	ReadFiles(folderPath string) (chan ReadResult, error)
 	DeleteFolder(folderPath string) error
 }
 
 type DefaultService struct {
-	downloader Downloader
-	cfg        *config.FileServiceCfg
-	wg         sync.WaitGroup
+	cfg *config.FileServiceCfg
+	wg  sync.WaitGroup
 }
 
-func NewDefaultService(downloader Downloader, cfg *config.FileServiceCfg) Service {
+func NewDefaultService(cfg *config.FileServiceCfg) Service {
 	return &DefaultService{
-		downloader: downloader,
-		cfg:        cfg,
+		cfg: cfg,
+		wg:  sync.WaitGroup{},
 	}
 }
 
@@ -35,7 +34,7 @@ func (d *DefaultService) CreateFolder(folderPath string) error {
 	return os.MkdirAll(path, os.ModePerm)
 }
 
-func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult {
+func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile, downloader Downloader) chan DownloadResult {
 	wg := sync.WaitGroup{}
 	counter := atomic.NewInt32(0)
 	result := make(chan DownloadResult)
@@ -53,7 +52,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 					<-sem
 					wg.Done()
 				}()
-				d.processFile(ctx, folderPath, f, len(files), counter, result)
+				d.processFile(ctx, folderPath, f, len(files), counter, result, downloader)
 			}(file)
 		}
 		wg.Wait()
@@ -63,7 +62,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	return result
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file RequestFile, total int, counter *atomic.Int32, result chan DownloadResult) {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file RequestFile, total int, counter *atomic.Int32, result chan DownloadResult, downloader Downloader) {
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
 	counter.Inc()
 
@@ -80,7 +79,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 		return
 	}
 
-	err = d.downloader.DownloadFile(ctx, file.TGFileID, dst)
+	err = downloader.DownloadFile(ctx, file.TGFileID, dst)
 	if err != nil {
 		if err := os.Remove(filePath); err != nil {
 			result <- DownloadResult{
