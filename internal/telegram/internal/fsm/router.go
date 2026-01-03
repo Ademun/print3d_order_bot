@@ -66,7 +66,7 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 			Update: update,
 			UserID: userID,
 			Data:   state.Data,
-			fsm:    r.fsm,
+			router: r,
 			step:   state.Step,
 		}
 

@@ -34,7 +34,7 @@ func (c *ChainDefinition[T]) OnText(handler TextHandler[T]) *ChainDefinition[T] 
 			Update: ctx.Update,
 			UserID: ctx.UserID,
 			Data:   typedData,
-			fsm:    ctx.fsm,
+			router: ctx.router,
 			step:   ctx.step,
 		}
 
@@ -61,7 +61,7 @@ func (c *ChainDefinition[T]) OnCallback(handler CallbackHandler[T]) *ChainDefini
 			Update: ctx.Update,
 			UserID: ctx.UserID,
 			Data:   typedData,
-			fsm:    ctx.fsm,
+			router: ctx.router,
 			step:   ctx.step,
 		}
 
