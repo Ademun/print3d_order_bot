@@ -1,6 +1,11 @@
 package fsm
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var IncompatibleHandler error = errors.New("incompatible handler")
 
 type UniversalHandler[T StateData] func(*ConversationContext[T]) error
 
@@ -39,7 +44,7 @@ func (c *ChainDefinition[T]) OnText(handler TextHandler[T]) *ChainDefinition[T] 
 		}
 
 		if typedCtx.Update.Message == nil {
-			return nil
+			return IncompatibleHandler
 		}
 
 		return handler(typedCtx, typedCtx.Update.Message.Text)
@@ -66,7 +71,7 @@ func (c *ChainDefinition[T]) OnCallback(handler CallbackHandler[T]) *ChainDefini
 		}
 
 		if typedCtx.Update.CallbackQuery == nil {
-			return nil
+			return IncompatibleHandler
 		}
 
 		return handler(typedCtx, typedCtx.Update.CallbackQuery.Data)

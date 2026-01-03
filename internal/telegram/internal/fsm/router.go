@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"print3d-order-bot/internal/telegram/internal/media"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 type Router struct {
 	fsm               *FSM
-	handlers          map[ConversationStep]UniversalHandler[StateData]
+	handlers          map[ConversationStep][]UniversalHandler[StateData]
 	pendingUsers      sync.Map
 	attachmentHandler UniversalHandler[StateData]
 }
@@ -21,7 +22,7 @@ type Router struct {
 func NewRouter(fsm *FSM) *Router {
 	return &Router{
 		fsm:          fsm,
-		handlers:     make(map[ConversationStep]UniversalHandler[StateData]),
+		handlers:     make(map[ConversationStep][]UniversalHandler[StateData]),
 		pendingUsers: sync.Map{},
 	}
 }
@@ -31,7 +32,7 @@ func (r *Router) SetAttachmentHandler(handler UniversalHandler[StateData]) {
 }
 
 func (r *Router) RegisterHandler(step ConversationStep, handler UniversalHandler[StateData]) {
-	r.handlers[step] = handler
+	r.handlers[step] = append(r.handlers[step], handler)
 }
 
 func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
@@ -53,7 +54,7 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 
 		state := r.fsm.GetOrCreateState(userID)
 
-		handler, exists := r.handlers[state.Step]
+		handlers, exists := r.handlers[state.Step]
 		if !exists {
 			r.fsm.ResetState(userID)
 			next(ctx, b, update)
@@ -72,13 +73,18 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 
 		if hasMedia(update) {
 			r.fsm.ResetState(userID)
-			handler = r.attachmentHandler
+			handlers = []UniversalHandler[StateData]{r.attachmentHandler}
 		}
 
-		if err := handler(convCtx); err != nil {
-			slog.Error("Handler error", "error", err, "step", state.Step)
-			convCtx.SendMessage("<b>❌ Произошла неизвестная ошибка, попробуйте позже</b>", nil)
-			r.fsm.ResetState(userID)
+		for _, handler := range handlers {
+			if err := handler(convCtx); err != nil {
+				if errors.Is(err, IncompatibleHandler) {
+					continue
+				}
+				slog.Error("Handler error", "error", err, "step", state.Step)
+				convCtx.SendMessage("<b>❌ Произошла неизвестная ошибка, попробуйте позже</b>", nil)
+				r.fsm.ResetState(userID)
+			}
 		}
 	}
 }
