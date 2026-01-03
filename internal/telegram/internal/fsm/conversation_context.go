@@ -13,7 +13,7 @@ type ConversationContext[T StateData] struct {
 	Update *models.Update
 	UserID int64
 	Data   T
-	fsm    *FSM
+	router *Router
 	step   ConversationStep
 }
 
@@ -28,10 +28,10 @@ func (c *ConversationContext[T]) SendMessage(text string, markup *models.ReplyMa
 	return err
 }
 
-func (c *ConversationContext[T]) Transition(nextStep ConversationStep, data StateData) error {
-	return c.fsm.Transition(c.Ctx, c.UserID, nextStep, data)
+func (c *ConversationContext[T]) Transition(nextStep ConversationStep, data StateData) {
+	c.router.Transition(c.Ctx, c.UserID, nextStep, data)
 }
 
-func (c *ConversationContext[T]) Complete() error {
-	return c.fsm.ResetState(c.Ctx, c.UserID)
+func (c *ConversationContext[T]) Complete() {
+	c.router.Transition(c.Ctx, c.UserID, StepIdle, &IdleData{})
 }
