@@ -9,7 +9,7 @@ import (
 
 type OrderEditFlowDeps struct {
 	Router       *fsm.Router
-	OrderService *order.Service
+	OrderService order.Service
 }
 
 func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
@@ -59,7 +59,7 @@ func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 		}).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
 			if data == "skip" {
-				return finalizeOrderEdit(ctx, *deps.OrderService)
+				return finalizeOrderEdit(ctx, deps.OrderService)
 			}
 			return nil
 		}).
@@ -67,7 +67,7 @@ func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
 			override := data == "yes"
 			ctx.Data.OverrideComments = &override
-			return finalizeOrderEdit(ctx, *deps.OrderService)
+			return finalizeOrderEdit(ctx, deps.OrderService)
 		})
 }
 

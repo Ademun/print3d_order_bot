@@ -11,7 +11,6 @@ import (
 	"print3d-order-bot/internal/reconciler"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
-	"print3d-order-bot/internal/telegram/internal/presentation"
 
 	"github.com/go-telegram/bot"
 )
@@ -51,18 +50,25 @@ func (b *Bot) Start(ctx context.Context) {
 	b.api.RegisterHandler(bot.HandlerTypeMessageText, "help", bot.MatchTypeCommandStartOnly, b.handlerHelpCmd)
 	b.api.RegisterHandler(bot.HandlerTypeMessageText, "orders", bot.MatchTypeCommandStartOnly, b.handleOrderViewCmd)
 
-	b.router.SetAttachmentHandler(b.handleOrderCreation)
-	b.router.RegisterHandler(fsm.StepAwaitingOrderType, b.handleOrderType)
-	b.router.RegisterHandler(fsm.StepAwaitingOrderSelectSliderAction, b.handleOrderSelectorAction)
-	b.router.RegisterHandler(fsm.StepAwaitingClientName, b.handleClientName)
-	b.router.RegisterHandler(fsm.StepAwaitingOrderCost, b.handleOrderCost)
-	b.router.RegisterHandler(fsm.StepAwaitingOrderComments, b.handleOrderComments)
-	b.router.RegisterHandler(fsm.StepAwaitingNewOrderConfirmation, b.handleNewOrderConfirmation)
-	b.router.RegisterHandler(fsm.StepAwaitingOrderViewSliderAction, b.handleOrderViewAction)
-	b.router.RegisterHandler(fsm.StepAwaitingEditName, b.handleEditOrderName)
-	b.router.RegisterHandler(fsm.StepAwaitingEditCost, b.handleEditOrderCost)
-	b.router.RegisterHandler(fsm.StepAwaitingEditComments, b.handleEditOrderComments)
-	b.router.RegisterHandler(fsm.StepAwaitingEditOverrideComments, b.handleEditOrderCommentsOverride)
+	SetupOrderCreationFlow(&OrderCreationDeps{
+		Router:       b.router,
+		Collector:    b.collector,
+		OrderService: b.orderService,
+		FileService:  b.fileService,
+	})
+
+	SetupOrderViewerFlow(&OrderViewerDeps{
+		Router:            b.router,
+		OrderService:      b.orderService,
+		FileService:       b.fileService,
+		ReconcilerService: b.reconcilerService,
+		MtprotoClient:     b.mtprotoClient,
+	})
+
+	SetupOrderEditFlow(&OrderEditFlowDeps{
+		Router:       b.router,
+		OrderService: b.orderService,
+	})
 
 	slog.Info("Started Telegram Bot")
 	go b.api.Start(ctx)
@@ -90,11 +96,5 @@ func (b *Bot) AnswerCallbackQuery(ctx context.Context, params *bot.AnswerCallbac
 }
 
 func (b *Bot) tryTransition(ctx context.Context, userID int64, newStep fsm.ConversationStep, newData fsm.StateData) {
-	if err := b.router.Transition(ctx, userID, newStep, newData); err != nil {
-		slog.Error(err.Error())
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: userID,
-			Text:   presentation.GenericErrorMsg(),
-		})
-	}
+	b.router.Transition(ctx, userID, newStep, newData)
 }

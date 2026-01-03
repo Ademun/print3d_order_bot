@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	fileSvc "print3d-order-bot/internal/file"
 	"print3d-order-bot/internal/mtproto"
 	orderSvc "print3d-order-bot/internal/order"
@@ -12,12 +13,63 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
+func (b *Bot) handleOrderViewCmd(ctx context.Context, api *bot.Bot, update *models.Update) {
+	userID := update.Message.From.ID
+
+	ids, err := b.orderService.GetActiveOrdersIDs(ctx)
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.OrderIDsLoadErrorMsg(),
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	if len(ids) == 0 {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.EmptyOrderListMsg(),
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	order, err := b.orderService.GetOrderByID(ctx, ids[0])
+	if err != nil {
+		b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    userID,
+			Text:      presentation.OrderLoadErrorMsg(),
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	action := extractOrderAction(order.Status)
+	newData := &fsm.OrderSliderData{
+		OrdersIDs:  ids,
+		CurrentIdx: 0,
+	}
+
+	disablePreview := true
+	b.tryTransition(ctx, userID, fsm.StepAwaitingOrderViewSliderAction, newData)
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      userID,
+		Text:        presentation.OrderViewMsg(order),
+		ReplyMarkup: presentation.OrderSliderMgmtKbd(len(ids), 0, action),
+		LinkPreviewOptions: &models.LinkPreviewOptions{
+			IsDisabled: &disablePreview,
+		},
+		ParseMode: models.ParseModeHTML,
+	})
+}
+
 type OrderViewerDeps struct {
 	Router            *fsm.Router
 	OrderService      orderSvc.Service
 	FileService       fileSvc.Service
 	ReconcilerService reconciler.Service
-	MtprotoClient     mtproto.Client
+	MtprotoClient     *mtproto.Client
 }
 
 func SetupOrderViewerFlow(deps *OrderViewerDeps) {
