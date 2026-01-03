@@ -46,6 +46,10 @@ func (d *BotApiDownloader) DownloadFile(ctx context.Context, fileID string, dst 
 		return err
 	}
 
+	if file.FileSize > 20*1024*1024 {
+		return fmt.Errorf("file too large")
+	}
+
 	link := d.bot.FileDownloadLink(file)
 	resp, err := http.Get(link)
 	if err != nil {
