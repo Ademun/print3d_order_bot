@@ -3,15 +3,17 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"print3d-order-bot/internal/file"
 	"print3d-order-bot/internal/mtproto"
 	"print3d-order-bot/internal/order"
-	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/reconciler"
 	"print3d-order-bot/internal/telegram/internal/fsm"
 	"print3d-order-bot/internal/telegram/internal/media"
 	"print3d-order-bot/internal/telegram/internal/presentation"
+	"print3d-order-bot/pkg/config"
 
 	"github.com/go-telegram/bot"
 )
@@ -97,4 +99,34 @@ func (b *Bot) tryTransition(ctx context.Context, userID int64, newStep fsm.Conve
 			Text:   presentation.GenericErrorMsg(),
 		})
 	}
+}
+
+func (b *Bot) DownloadFile(ctx context.Context, fileID string, dst io.Writer) error {
+	file, err := b.api.GetFile(ctx, &bot.GetFileParams{
+		FileID: fileID,
+	})
+	if err != nil {
+		return err
+	}
+
+	if file.FileSize > 20*1024*1024 {
+		return fmt.Errorf("file too large")
+	}
+
+	link := b.api.FileDownloadLink(file)
+	resp, err := http.Get(link)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", resp.Status)
+	}
+
+	if _, err := io.Copy(dst, resp.Body); err != nil {
+		return err
+	}
+
+	return nil
 }

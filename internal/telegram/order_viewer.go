@@ -72,7 +72,6 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 		CallbackQueryID: update.CallbackQuery.ID,
 	})
 	userID := update.CallbackQuery.From.ID
-	messageID := update.CallbackQuery.Message.Message.ID
 
 	sliderAction := update.CallbackQuery.Data
 
@@ -143,7 +142,7 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			if file.Err != nil {
 				b.SendMessage(ctx, &bot.SendMessageParams{})
 			}
-			if err := b.mtprotoClient.UploadFile(ctx, file.Name, file.Body, messageID, userID); err != nil {
+			if err := b.mtprotoClient.UploadFile(ctx, file.Name, file.Body, userID); err != nil {
 				b.SendMessage(ctx, &bot.SendMessageParams{
 					ChatID:    userID,
 					Text:      presentation.UploadErrorMsg(file.Name),
