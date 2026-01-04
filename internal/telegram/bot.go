@@ -16,6 +16,7 @@ import (
 	"print3d-order-bot/pkg/config"
 
 	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 type Bot struct {
@@ -129,4 +130,17 @@ func (b *Bot) DownloadFile(ctx context.Context, fileID string, dst io.Writer) er
 	}
 
 	return nil
+}
+
+func (b *Bot) UploadFile(ctx context.Context, filename string, file io.ReadCloser, userID int64) error {
+	_, err := b.api.SendDocument(ctx, &bot.SendDocumentParams{
+		ChatID: userID,
+		Document: &models.InputFileUpload{
+			Filename: filename,
+			Data:     file,
+		},
+		Caption: "document",
+	})
+
+	return err
 }
