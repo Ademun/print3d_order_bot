@@ -5,27 +5,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"print3d-order-bot/internal/mtproto"
 
 	"github.com/go-telegram/bot"
 )
 
 type Downloader interface {
 	DownloadFile(ctx context.Context, fileID string, dst io.Writer) error
-}
-
-type MTProtoDownloader struct {
-	client *mtproto.Client
-}
-
-func NewMTProtoDownloader(client *mtproto.Client) *MTProtoDownloader {
-	return &MTProtoDownloader{
-		client: client,
-	}
-}
-
-func (d *MTProtoDownloader) DownloadFile(ctx context.Context, fileID string, dst io.Writer) error {
-	return d.client.DownloadFile(ctx, fileID, dst)
 }
 
 type BotApiDownloader struct {
