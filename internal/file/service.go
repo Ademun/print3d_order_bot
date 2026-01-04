@@ -154,6 +154,14 @@ func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
 
 				path := filepath.Join(dst, entry.Name())
 
+				fileInfo, err := entry.Info()
+				if err != nil {
+					result <- ReadResult{
+						Name: entry.Name(),
+						Err:  &ErrOpenFile{Err: err},
+					}
+				}
+
 				file, err := os.Open(path)
 				if err != nil {
 					result <- ReadResult{
@@ -173,6 +181,7 @@ func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
 				result <- ReadResult{
 					Name:     entry.Name(),
 					Body:     file,
+					Size:     uint64(fileInfo.Size()),
 					Checksum: checksum,
 				}
 			}(entry)

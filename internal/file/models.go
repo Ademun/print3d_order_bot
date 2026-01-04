@@ -25,6 +25,7 @@ type DownloadResult struct {
 type ReadResult struct {
 	Name     string
 	Body     io.ReadCloser
+	Size     uint64
 	Checksum uint64
 	Err      error
 }
