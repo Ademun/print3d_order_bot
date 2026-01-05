@@ -3,7 +3,7 @@ package order
 import (
 	"context"
 	"fmt"
-	"print3d-order-bot/internal/pkg"
+	"print3d-order-bot/pkg"
 	"time"
 
 	"github.com/Masterminds/squirrel"

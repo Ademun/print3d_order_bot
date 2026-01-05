@@ -233,6 +233,10 @@ func UploadErrorMsg(filename string) string {
 	return fmt.Sprintf("<b>❌ Не удалось загрузить файл %s</b>", filename)
 }
 
+func FileTooBigMsg(filename string) string {
+	return fmt.Sprintf("<b>❌ Файл %s слишком большой для загрузки. Максимальный размер - 2 ГБ</b>", filename)
+}
+
 func breakLine(n int) string {
 	return strings.Repeat("\n", n)
 }

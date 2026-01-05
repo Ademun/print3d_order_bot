@@ -142,10 +142,26 @@ func (b *Bot) handleOrderViewAction(ctx context.Context, api *bot.Bot, update *m
 			if file.Err != nil {
 				b.SendMessage(ctx, &bot.SendMessageParams{})
 			}
-			if err := b.mtprotoClient.UploadFile(ctx, file.Name, file.Body, userID); err != nil {
+			if file.Size <= 49*1024*1024 {
+				if err := b.UploadFile(ctx, file.Name, file.Body, userID); err != nil {
+					b.SendMessage(ctx, &bot.SendMessageParams{
+						ChatID:    userID,
+						Text:      presentation.UploadErrorMsg(file.Name),
+						ParseMode: models.ParseModeHTML,
+					})
+				}
+			} else if file.Size <= 2*1024*1024 {
+				if err := b.mtprotoClient.UploadFile(ctx, file.Name, file.Body, userID); err != nil {
+					b.SendMessage(ctx, &bot.SendMessageParams{
+						ChatID:    userID,
+						Text:      presentation.UploadErrorMsg(file.Name),
+						ParseMode: models.ParseModeHTML,
+					})
+				}
+			} else {
 				b.SendMessage(ctx, &bot.SendMessageParams{
 					ChatID:    userID,
-					Text:      presentation.UploadErrorMsg(file.Name),
+					Text:      presentation.FileTooBigMsg(file.Name),
 					ParseMode: models.ParseModeHTML,
 				})
 			}

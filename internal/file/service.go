@@ -11,15 +11,18 @@ import (
 )
 
 type Service interface {
+	SetDownloaders(botApiDownloader, mtprotoDownloader Downloader)
 	CreateFolder(folderPath string) error
-	DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile, downloader Downloader) chan DownloadResult
+	DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult
 	ReadFiles(folderPath string) (chan ReadResult, error)
 	DeleteFolder(folderPath string) error
 }
 
 type DefaultService struct {
-	cfg *config.FileServiceCfg
-	wg  sync.WaitGroup
+	botApiDownloader  Downloader
+	mtprotoDownloader Downloader
+	cfg               *config.FileServiceCfg
+	wg                sync.WaitGroup
 }
 
 func NewDefaultService(cfg *config.FileServiceCfg) Service {
@@ -29,12 +32,17 @@ func NewDefaultService(cfg *config.FileServiceCfg) Service {
 	}
 }
 
+func (d *DefaultService) SetDownloaders(botApiDownloader, mtprotoDownloader Downloader) {
+	d.botApiDownloader = botApiDownloader
+	d.mtprotoDownloader = mtprotoDownloader
+}
+
 func (d *DefaultService) CreateFolder(folderPath string) error {
 	path := filepath.Join(d.cfg.DirPath, folderPath)
 	return os.MkdirAll(path, os.ModePerm)
 }
 
-func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile, downloader Downloader) chan DownloadResult {
+func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult {
 	wg := sync.WaitGroup{}
 	counter := atomic.NewInt32(0)
 	result := make(chan DownloadResult)
@@ -52,7 +60,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 					<-sem
 					wg.Done()
 				}()
-				d.processFile(ctx, folderPath, f, len(files), counter, result, downloader)
+				d.processFile(ctx, folderPath, f, len(files), counter, result)
 			}(file)
 		}
 		wg.Wait()
@@ -62,7 +70,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	return result
 }
 
-func (d *DefaultService) processFile(ctx context.Context, folderPath string, file RequestFile, total int, counter *atomic.Int32, result chan DownloadResult, downloader Downloader) {
+func (d *DefaultService) processFile(ctx context.Context, folderPath string, file RequestFile, total int, counter *atomic.Int32, result chan DownloadResult) {
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
 	counter.Inc()
 
@@ -79,8 +87,13 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 		return
 	}
 
-	err = downloader.DownloadFile(ctx, file.TGFileID, dst)
-	if err != nil {
+	var downloadErr error
+	if file.Size <= 19*1024*1024 {
+		downloadErr = d.botApiDownloader.DownloadFile(ctx, file.TGFileID, dst)
+	} else {
+		downloadErr = d.mtprotoDownloader.DownloadFile(ctx, file.TGFileID, dst)
+	}
+	if downloadErr != nil {
 		if err := os.Remove(filePath); err != nil {
 			result <- DownloadResult{
 				Result: &ResponseFile{
