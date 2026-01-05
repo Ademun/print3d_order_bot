@@ -69,6 +69,7 @@ type OrderViewerDeps struct {
 	OrderService      orderSvc.Service
 	FileService       fileSvc.Service
 	ReconcilerService reconciler.Service
+	BotApi            *Bot
 	MtprotoClient     *mtproto.Client
 }
 
@@ -158,7 +159,6 @@ func handleOrderFiles(ctx *fsm.ConversationContext[*fsm.OrderSliderData], deps *
 		return ctx.SendMessage(presentation.FilesLoadErrorMsg(), nil)
 	}
 
-	messageID := ctx.Update.CallbackQuery.Message.Message.ID
 	for file := range files {
 		if file.Err != nil {
 			if err := ctx.SendMessage(presentation.FilesLoadErrorMsg(), nil); err != nil {
@@ -167,7 +167,14 @@ func handleOrderFiles(ctx *fsm.ConversationContext[*fsm.OrderSliderData], deps *
 			continue
 		}
 
-		if err := deps.MtprotoClient.UploadFile(ctx.Ctx, file.Name, file.Body, messageID, ctx.UserID); err != nil {
+		var uploadErr error
+		if file.Size <= 49*1024*1024 {
+			uploadErr = deps.BotApi.UploadFile(ctx.Ctx, file.Name, file.Body, ctx.UserID)
+		} else {
+			uploadErr = deps.MtprotoClient.UploadFile(ctx.Ctx, file.Name, file.Body, ctx.UserID)
+		}
+
+		if uploadErr != nil {
 			if err := ctx.SendMessage(presentation.UploadErrorMsg(file.Name), nil); err != nil {
 				return err
 			}
