@@ -9,9 +9,9 @@ import (
 	"print3d-order-bot/internal/file"
 	"print3d-order-bot/internal/mtproto"
 	"print3d-order-bot/internal/order"
-	"print3d-order-bot/internal/pkg/config"
 	"print3d-order-bot/internal/reconciler"
 	"print3d-order-bot/internal/telegram"
+	"print3d-order-bot/pkg/config"
 	"syscall"
 	"time"
 
@@ -37,8 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	downloader := file.NewMTProtoDownloader(mtprotoClient)
-	fileService := file.NewDefaultService(downloader, &cfg.FileService)
+	fileService := file.NewDefaultService(&cfg.FileService)
 
 	orderRepo := order.NewDefaultRepo(pool)
 	orderService := order.NewDefaultService(orderRepo)
@@ -50,6 +49,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	fileService.SetDownloaders(bot, mtprotoClient)
+
 	bot.Start(ctx)
 
 	<-ctx.Done()

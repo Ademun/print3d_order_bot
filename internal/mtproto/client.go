@@ -6,7 +6,7 @@ import (
 	"io"
 	"log"
 	"print3d-order-bot/internal/mtproto/internal"
-	"print3d-order-bot/internal/pkg/config"
+	"print3d-order-bot/pkg/config"
 	"time"
 
 	"github.com/gotd/td/telegram"
@@ -78,14 +78,12 @@ func NewClient(ctx context.Context, cfg *config.MTProtoCfg) (*Client, error) {
 	}
 }
 
-func (c *Client) UploadFile(ctx context.Context, filename string, file io.ReadCloser, msgID int, userID int64) error {
-	fmt.Println(filename)
+func (c *Client) UploadFile(ctx context.Context, filename string, file io.ReadCloser, userID int64) error {
 	defer file.Close()
 	upload, err := c.uploader.FromReader(ctx, filename, file)
 	if err != nil {
 		return err
 	}
-	fmt.Println(upload.String())
 
 	document := message.UploadedDocument(upload).Filename(filename)
 

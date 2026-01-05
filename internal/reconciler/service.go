@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	fileSvc "print3d-order-bot/internal/file"
 	orderSvc "print3d-order-bot/internal/order"
-	"print3d-order-bot/internal/pkg/config"
+	"print3d-order-bot/pkg/config"
 	"sync"
 	"time"
 )

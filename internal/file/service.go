@@ -4,13 +4,14 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"print3d-order-bot/internal/pkg/config"
+	"print3d-order-bot/pkg/config"
 	"sync"
 
 	"go.uber.org/atomic"
 )
 
 type Service interface {
+	SetDownloaders(botApiDownloader, mtprotoDownloader Downloader)
 	CreateFolder(folderPath string) error
 	DownloadAndSave(ctx context.Context, folderPath string, files []RequestFile) chan DownloadResult
 	ReadFiles(folderPath string) (chan ReadResult, error)
@@ -18,16 +19,22 @@ type Service interface {
 }
 
 type DefaultService struct {
-	downloader Downloader
-	cfg        *config.FileServiceCfg
-	wg         sync.WaitGroup
+	botApiDownloader  Downloader
+	mtprotoDownloader Downloader
+	cfg               *config.FileServiceCfg
+	wg                sync.WaitGroup
 }
 
-func NewDefaultService(downloader Downloader, cfg *config.FileServiceCfg) Service {
+func NewDefaultService(cfg *config.FileServiceCfg) Service {
 	return &DefaultService{
-		downloader: downloader,
-		cfg:        cfg,
+		cfg: cfg,
+		wg:  sync.WaitGroup{},
 	}
+}
+
+func (d *DefaultService) SetDownloaders(botApiDownloader, mtprotoDownloader Downloader) {
+	d.botApiDownloader = botApiDownloader
+	d.mtprotoDownloader = mtprotoDownloader
 }
 
 func (d *DefaultService) CreateFolder(folderPath string) error {
@@ -80,8 +87,13 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 		return
 	}
 
-	err = d.downloader.DownloadFile(ctx, file.TGFileID, dst)
-	if err != nil {
+	var downloadErr error
+	if file.Size <= 19*1024*1024 {
+		downloadErr = d.botApiDownloader.DownloadFile(ctx, file.TGFileID, dst)
+	} else {
+		downloadErr = d.mtprotoDownloader.DownloadFile(ctx, file.TGFileID, dst)
+	}
+	if downloadErr != nil {
 		if err := os.Remove(filePath); err != nil {
 			result <- DownloadResult{
 				Result: &ResponseFile{
@@ -155,6 +167,14 @@ func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
 
 				path := filepath.Join(dst, entry.Name())
 
+				fileInfo, err := entry.Info()
+				if err != nil {
+					result <- ReadResult{
+						Name: entry.Name(),
+						Err:  &ErrOpenFile{Err: err},
+					}
+				}
+
 				file, err := os.Open(path)
 				if err != nil {
 					result <- ReadResult{
@@ -174,6 +194,7 @@ func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
 				result <- ReadResult{
 					Name:     entry.Name(),
 					Body:     file,
+					Size:     uint64(fileInfo.Size()),
 					Checksum: checksum,
 				}
 			}(entry)
