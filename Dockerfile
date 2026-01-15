@@ -9,7 +9,7 @@ COPY . .
 
 RUN go build -ldflags="-s -w" -v -o print3d-order-bot .
 
-FROM alpine
+FROM alpine:latest
 
 WORKDIR /app
 
