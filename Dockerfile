@@ -7,7 +7,7 @@ ADD go.mod .
 RUN go mod download
 COPY . .
 
-RUN go build -ldflags="-s -w" -o print3d-order-bot .
+RUN go build -ldflags="-s -w" -v -o print3d-order-bot .
 
 FROM alpine
 
