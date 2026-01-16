@@ -316,11 +316,7 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 		return ctx.Complete(presentation.OrderCreationErrorMsg())
 	}
 
-	if err := ctx.SendMessage(presentation.NewOrderCreatedMsg(), nil); err != nil {
-		return err
-	}
-
-	return ctx.Complete("")
+	return ctx.Complete(presentation.NewOrderCreatedMsg())
 }
 
 func formatDownloadError(err error) string {
