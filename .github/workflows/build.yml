@@ -53,5 +53,5 @@ jobs:
       - name: Update container
         run: |
           cd /home/ademun/print3d-order-bot
-          docker compose pull print3d-order-bot
+          docker compose pull bot
           docker compose up -d bot
