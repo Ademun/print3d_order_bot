@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/caarlos0/env/v10"
-	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,10 +34,6 @@ type MTProtoCfg struct {
 }
 
 func Load(configPath string) (*Config, error) {
-	if err := godotenv.Load(".env"); err != nil {
-		return nil, fmt.Errorf("failed to load .env file: %w", err)
-	}
-
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
