@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"errors"
+	"log/slog"
 	fileSvc "print3d-order-bot/internal/file"
 	orderSvc "print3d-order-bot/internal/order"
 	"print3d-order-bot/internal/telegram/internal/fsm"
@@ -22,7 +23,7 @@ type OrderCreationDeps struct {
 }
 
 func SetupOrderCreationFlow(deps *OrderCreationDeps) {
-	deps.Router.RegisterHandler(fsm.StepIdle, func(ctx *fsm.ConversationContext[fsm.StateData]) error {
+	deps.Router.SetAttachmentHandler(func(ctx *fsm.ConversationContext[fsm.StateData]) error {
 		if ctx.Update.Message == nil {
 			return nil
 		}
@@ -32,23 +33,23 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 			var newData *fsm.OrderData
 
 			if ok {
-				newData = &fsm.OrderData{
-					UserID:     data.UserID,
-					ClientName: data.ClientName,
-					Comments:   data.Comments,
-					Contacts:   append(data.Contacts, window.Contacts...),
-					Links:      append(data.Links, window.Links...),
-					Files:      append(data.Files, window.Media...),
+				data.Contacts = append(data.Contacts, window.Contacts...)
+				data.Links = append(data.Links, window.Links...)
+				data.Files = append(data.Files, window.Media...)
+
+				ctx.Transition(ctx.Step, data)
+				if err := ctx.SendMessage(presentation.AddedDataToOrderMsg(), nil); err != nil {
+					return
 				}
-			} else {
-				newData = &fsm.OrderData{
-					UserID:   ctx.UserID,
-					Files:    window.Media,
-					Contacts: window.Contacts,
-					Links:    window.Links,
-				}
+				return
 			}
 
+			newData = &fsm.OrderData{
+				UserID:   ctx.UserID,
+				Files:    window.Media,
+				Contacts: window.Contacts,
+				Links:    window.Links,
+			}
 			ctx.Transition(fsm.StepAwaitingOrderType, newData)
 			if err := ctx.SendMessage(
 				presentation.AskOrderTypeMsg(),
@@ -288,6 +289,8 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 			Checksum: result.Result.Checksum,
 			TgFileID: &result.Result.TGFileID,
 		})
+
+		slog.Info("res", result)
 
 		if err := ctx.EditMessageText(msgID.ID, presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total)); err != nil {
 			return err

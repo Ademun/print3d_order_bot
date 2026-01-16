@@ -13,8 +13,8 @@ type ConversationContext[T StateData] struct {
 	Update *models.Update
 	UserID int64
 	Data   T
+	Step   ConversationStep
 	router *Router
-	step   ConversationStep
 }
 
 func (c *ConversationContext[T]) SendMessage(text string, markup models.ReplyMarkup) error {
@@ -78,10 +78,10 @@ func (c *ConversationContext[T]) EditMessageReplyMarkup(messageID int, markup mo
 }
 
 func (c *ConversationContext[T]) Transition(nextStep ConversationStep, data StateData) {
-	c.router.Transition(c.Ctx, c.UserID, nextStep, data)
+	c.router.Transition(c.UserID, nextStep, data)
 }
 
 func (c *ConversationContext[T]) Complete(text string) error {
-	c.router.Transition(c.Ctx, c.UserID, StepIdle, &IdleData{})
+	c.router.Transition(c.UserID, StepIdle, &IdleData{})
 	return c.SendMessage(text, nil)
 }

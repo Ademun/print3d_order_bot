@@ -98,8 +98,8 @@ func (b *Bot) AnswerCallbackQuery(ctx context.Context, params *bot.AnswerCallbac
 	}
 }
 
-func (b *Bot) tryTransition(ctx context.Context, userID int64, newStep fsm.ConversationStep, newData fsm.StateData) {
-	b.router.Transition(ctx, userID, newStep, newData)
+func (b *Bot) tryTransition(userID int64, newStep fsm.ConversationStep, newData fsm.StateData) {
+	b.router.Transition(userID, newStep, newData)
 }
 
 func (b *Bot) DownloadFile(ctx context.Context, fileID string, dst io.Writer) error {

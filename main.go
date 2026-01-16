@@ -26,6 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	pgconfig, err := pgxpool.ParseConfig(cfg.DB.ConnString)
 	if err != nil {
 		log.Fatal(err)

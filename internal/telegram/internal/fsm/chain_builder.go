@@ -40,7 +40,7 @@ func (c *ChainDefinition[T]) OnText(handler TextHandler[T]) *ChainDefinition[T] 
 			UserID: ctx.UserID,
 			Data:   typedData,
 			router: ctx.router,
-			step:   ctx.step,
+			Step:   ctx.Step,
 		}
 
 		if typedCtx.Update.Message == nil {
@@ -67,7 +67,7 @@ func (c *ChainDefinition[T]) OnCallback(handler CallbackHandler[T]) *ChainDefini
 			UserID: ctx.UserID,
 			Data:   typedData,
 			router: ctx.router,
-			step:   ctx.step,
+			Step:   ctx.Step,
 		}
 
 		if typedCtx.Update.CallbackQuery == nil {

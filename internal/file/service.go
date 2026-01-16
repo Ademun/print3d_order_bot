@@ -72,7 +72,7 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 
 func (d *DefaultService) processFile(ctx context.Context, folderPath string, file RequestFile, total int, counter *atomic.Int32, result chan DownloadResult) {
 	filePath := filepath.Join(d.cfg.DirPath, folderPath, file.Name)
-	counter.Inc()
+	currentIndex := int(counter.Inc())
 
 	dst, err := prepareFilepath(filePath)
 	if err != nil {
@@ -80,7 +80,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 			Result: &ResponseFile{
 				Name: file.Name,
 			},
-			Index: int(counter.Load()),
+			Index: currentIndex,
 			Total: total,
 			Err:   &ErrPrepareFilepath{Err: err},
 		}
@@ -99,7 +99,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 				Result: &ResponseFile{
 					Name: file.Name,
 				},
-				Index: int(counter.Load()),
+				Index: currentIndex,
 				Total: total,
 				Err:   &ErrDownloadFailed{Err: err},
 			}
@@ -108,7 +108,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 			Result: &ResponseFile{
 				Name: file.Name,
 			},
-			Index: int(counter.Load()),
+			Index: currentIndex,
 			Total: total,
 			Err:   &ErrDownloadFailed{Err: err},
 		}
@@ -120,7 +120,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 			Result: &ResponseFile{
 				Name: file.Name,
 			},
-			Index: int(counter.Load()),
+			Index: currentIndex,
 			Total: total,
 			Err:   ErrCalculateChecksum,
 		}
@@ -132,7 +132,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 			Checksum: checksum,
 			TGFileID: file.TGFileID,
 		},
-		Index: int(counter.Load()),
+		Index: currentIndex,
 		Total: total,
 		Err:   nil,
 	}

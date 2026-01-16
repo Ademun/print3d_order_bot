@@ -54,11 +54,17 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 
 		state := r.fsm.GetOrCreateState(userID)
 
-		handlers, exists := r.handlers[state.Step]
-		if !exists {
-			r.fsm.ResetState(userID)
-			next(ctx, b, update)
-			return
+		var handlers []UniversalHandler[StateData]
+		if hasMedia(update) {
+			handlers = []UniversalHandler[StateData]{r.attachmentHandler}
+		} else {
+			hndlrs, exist := r.handlers[state.Step]
+			if !exist {
+				r.fsm.ResetState(userID)
+				next(ctx, b, update)
+				return
+			}
+			handlers = hndlrs
 		}
 
 		convCtx := &ConversationContext[StateData]{
@@ -68,12 +74,7 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 			UserID: userID,
 			Data:   state.Data,
 			router: r,
-			step:   state.Step,
-		}
-
-		if hasMedia(update) {
-			r.fsm.ResetState(userID)
-			handlers = []UniversalHandler[StateData]{r.attachmentHandler}
+			Step:   state.Step,
 		}
 
 		for _, handler := range handlers {
@@ -89,7 +90,7 @@ func (r *Router) Middleware(next bot.HandlerFunc) bot.HandlerFunc {
 	}
 }
 
-func (r *Router) Transition(ctx context.Context, userID int64, nextStep ConversationStep, data StateData) {
+func (r *Router) Transition(userID int64, nextStep ConversationStep, data StateData) {
 	r.fsm.SetStep(userID, nextStep)
 	if data == nil {
 		return
