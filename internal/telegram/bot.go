@@ -65,6 +65,7 @@ func (b *Bot) Start(ctx context.Context) {
 		OrderService:      b.orderService,
 		FileService:       b.fileService,
 		ReconcilerService: b.reconcilerService,
+		BotApi:            b,
 		MtprotoClient:     b.mtprotoClient,
 	})
 
