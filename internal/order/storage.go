@@ -87,8 +87,8 @@ func (d *DefaultRepo) NewOrder(ctx context.Context, order DBNewOrder, files []DB
 
 func (d *DefaultRepo) insertOrder(ctx context.Context, order DBNewOrder, tx pgx.Tx) (int, error) {
 	stmt := d.builder.Insert("orders").
-		Columns("status, client_name, cost, comments, contacts, links, created_at, folder_path").
-		Values(order.Status, order.ClientName, order.Cost, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
+		Columns("status", "print_type", "client_name", "cost", "comments", "contacts", "links", "created_at", "folder_path").
+		Values(order.Status, order.PrintType, order.ClientName, order.Cost, order.Comments, order.Contacts, order.Links, order.CreatedAt, order.FolderPath).
 		Suffix("returning id")
 	query, args, err := stmt.ToSql()
 	if err != nil {
@@ -245,7 +245,7 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBNewOrde
 	}
 
 	var order DBNewOrder
-	if err := d.pool.QueryRow(ctx, query, args...).Scan(&order.ID, &order.Status, &order.ClientName, &order.Cost, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
+	if err := d.pool.QueryRow(ctx, query, args...).Scan(&order.ID, &order.Status, &order.PrintType, &order.ClientName, &order.Cost, &order.Comments, &order.Contacts, &order.Links, &order.CreatedAt, &order.ClosedAt, &order.FolderPath); err != nil {
 		return nil, &pkg.ErrDBProcedure{
 			Cause: "failed to select order",
 			Info:  fmt.Sprintf("GetOrderByID; query: %s", query),
@@ -286,6 +286,9 @@ func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status
 
 func (d *DefaultRepo) EditOrder(ctx context.Context, order DBEditOrder) error {
 	stmt := d.builder.Update("orders").Where(squirrel.Eq{"id": order.ID})
+	if order.PrintType != nil {
+		stmt = stmt.Set("print_type", *order.PrintType)
+	}
 	if order.ClientName != nil {
 		stmt = stmt.Set("client_name", *order.ClientName)
 	}

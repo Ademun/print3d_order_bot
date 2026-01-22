@@ -22,7 +22,7 @@ type RequestNewOrder struct {
 }
 
 type RequestEditOrder struct {
-	PrintType        string
+	PrintType        *string
 	ClientName       *string
 	Cost             *float32
 	Comments         []string
@@ -67,7 +67,7 @@ type DBNewOrder struct {
 
 type DBEditOrder struct {
 	ID               int      `db:"id"`
-	PrintType        string   `db:"print_type"`
+	PrintType        *string  `db:"print_type"`
 	ClientName       *string  `db:"client_name"`
 	Cost             *float32 `db:"cost"`
 	Comments         []string
