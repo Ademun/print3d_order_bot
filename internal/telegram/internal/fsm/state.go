@@ -7,6 +7,7 @@ type ConversationStep int
 const (
 	StepIdle ConversationStep = iota
 	StepAwaitingOrderType
+	StepAwaitingPrintType
 	StepAwaitingClientName
 	StepAwaitingOrderCost
 	StepAwaitingOrderComments
@@ -29,6 +30,7 @@ func (data *IdleData) StateData() {}
 
 type OrderData struct {
 	UserID     int64
+	PrintType  string
 	ClientName string
 	Cost       float32
 	Comments   []string
@@ -50,6 +52,7 @@ func (data *OrderSliderData) StateData() {}
 
 type OrderEditData struct {
 	OrderID          int
+	PrintType        *string
 	ClientName       *string
 	Cost             *float32
 	Comments         []string
