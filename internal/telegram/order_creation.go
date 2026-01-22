@@ -266,7 +266,7 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 	defer deps.Router.Unfreeze(ctx.UserID)
 
 	createdAt := time.Now()
-	folderPath := CreateFolderPath(ctx.Data.ClientName, createdAt, int(ctx.UserID))
+	folderPath := CreateFolderPath(createdAt, ctx.Data.ClientName, strings.Join(ctx.Data.Comments, " "), ctx.Data.PrintType)
 
 	filesToDownload := make([]fileSvc.RequestFile, len(ctx.Data.Files))
 	for i, f := range ctx.Data.Files {

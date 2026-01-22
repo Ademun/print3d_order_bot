@@ -53,7 +53,8 @@ func (d *DefaultRepo) NewOrder(ctx context.Context, order DBNewOrder, files []DB
 		return err
 	}
 
-	if len(files) == 0 {
+	if files == nil || len(files) == 0 {
+		tx.Commit(ctx)
 		return nil
 	}
 

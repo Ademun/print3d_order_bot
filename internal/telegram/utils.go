@@ -4,11 +4,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gosimple/slug"
 )
 
-func CreateFolderPath(clientName string, createdAt time.Time, messageID int) string {
-	path := strings.Join([]string{clientName, createdAt.Format("2006-01-02"), strconv.Itoa(messageID)}, "_")
-	return slug.Make(path)
+func CreateFolderPath(createdAt time.Time, clientName string, comments string, printType string) string {
+	return strings.Join([]string{createdAt.Format("02.01.2006"), clientName, comments, printType, strconv.FormatInt(createdAt.Unix(), 10)}, " ")
 }
