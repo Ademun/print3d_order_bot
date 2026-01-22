@@ -235,7 +235,7 @@ func (d *DefaultRepo) GetOrdersFolders(ctx context.Context, getActive bool) ([]s
 }
 
 func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBNewOrder, error) {
-	stmt := d.builder.Select("*").From("orders").Where(squirrel.Eq{"id": orderID})
+	stmt := d.builder.Select("id", "status", "print_type", "client_name", "cost", "comments", "contacts", "links", "created_at", "closed_at", "folder_path").From("orders").Where(squirrel.Eq{"id": orderID})
 	query, args, err := stmt.ToSql()
 	if err != nil {
 		return nil, &pkg.ErrDBProcedure{
