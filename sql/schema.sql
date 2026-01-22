@@ -4,6 +4,7 @@ create table orders
 (
     id     int primary key generated always as identity,
     status order_status not null,
+    print_type text not null default 'Неизвестный',
     client_name  text         not null,
     cost         real         not null,
     comments     text[] default '{}',
