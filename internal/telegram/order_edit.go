@@ -21,6 +21,7 @@ func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 			}
 			pType := strings.ToUpper(data)
 			ctx.Data.PrintType = &pType
+			ctx.Transition(fsm.StepAwaitingEditName, ctx.Data)
 			return ctx.SendMessage(presentation.AskClientNameMsg(), presentation.SkipKbd())
 		}).
 		Then(fsm.StepAwaitingEditName).

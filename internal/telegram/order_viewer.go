@@ -113,7 +113,7 @@ func SetupOrderViewerFlow(deps *OrderViewerDeps) {
 				kbd.InlineKeyboard = append(kbd.InlineKeyboard, presentation.SkipKbd().InlineKeyboard...)
 				return ctx.SendMessage(
 					presentation.AskPrintTypeMsg(),
-					presentation.PrintTypeKbd(),
+					kbd,
 				)
 
 			default:

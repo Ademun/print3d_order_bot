@@ -129,6 +129,8 @@ func NewOrderPreviewMsg(data *fsm.OrderData) string {
 	var sb strings.Builder
 	sb.WriteString("<b>❓ Создать новый заказ?</b>")
 	sb.WriteString(breakLine(2))
+	sb.WriteString(fmt.Sprintf("<b>📝 Тип печати: %s</b>", data.PrintType))
+	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("<b>👤 Клиент: %s</b>", data.ClientName))
 	sb.WriteString(breakLine(2))
 	costStr := FormatRUB(data.Cost)
@@ -181,6 +183,8 @@ func OrderViewMsg(data *order.ResponseOrder) string {
 	sb.WriteString(fmt.Sprintf("<b>Заказ №%d от %s</b>", data.ID, data.CreatedAt.Format("2006-01-02")))
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("<b>Статус: %s</b>", getStatusStr(data.Status)))
+	sb.WriteString(breakLine(2))
+	sb.WriteString(fmt.Sprintf("<b>📝 Тип печати: %s</b>", data.PrintType))
 	sb.WriteString(breakLine(2))
 	sb.WriteString(fmt.Sprintf("<b>👤 Клиент: %s</b>", data.ClientName))
 	sb.WriteString(breakLine(2))
