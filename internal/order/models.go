@@ -11,6 +11,7 @@ type File struct {
 }
 
 type RequestNewOrder struct {
+	PrintType  string
 	ClientName string
 	Cost       float32
 	Comments   []string
@@ -21,6 +22,7 @@ type RequestNewOrder struct {
 }
 
 type RequestEditOrder struct {
+	PrintType        string
 	ClientName       *string
 	Cost             *float32
 	Comments         []string
@@ -37,6 +39,7 @@ const (
 type ResponseOrder struct {
 	ID         int
 	Status     Status
+	PrintType  string
 	ClientName string
 	Cost       float32
 	Comments   []string
@@ -51,6 +54,7 @@ type ResponseOrder struct {
 type DBNewOrder struct {
 	ID         int        `db:"id"`
 	Status     Status     `db:"status"`
+	PrintType  string     `db:"print_type"`
 	ClientName string     `db:"client_name"`
 	Cost       float32    `db:"cost"`
 	Comments   []string   `db:"comments"`
@@ -63,6 +67,7 @@ type DBNewOrder struct {
 
 type DBEditOrder struct {
 	ID               int      `db:"id"`
+	PrintType        string   `db:"print_type"`
 	ClientName       *string  `db:"client_name"`
 	Cost             *float32 `db:"cost"`
 	Comments         []string
