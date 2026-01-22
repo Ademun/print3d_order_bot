@@ -258,7 +258,7 @@ func (d *DefaultRepo) GetOrderByID(ctx context.Context, orderID int) (*DBNewOrde
 }
 
 func (d *DefaultRepo) UpdateOrderStatus(ctx context.Context, orderID int, status Status) error {
-	stmt := d.builder.Update("orders").Set("order_status", status)
+	stmt := d.builder.Update("orders").Set("status", status)
 	switch status {
 	case StatusClosed:
 		stmt = stmt.Set("closed_at", time.Now())
