@@ -34,6 +34,7 @@ func NewDefaultService(repo Repo) Service {
 func (d *DefaultService) NewOrder(ctx context.Context, order RequestNewOrder, files []File) error {
 	dbOrder := DBNewOrder{
 		Status:     StatusActive,
+		PrintType:  order.PrintType,
 		ClientName: order.ClientName,
 		Cost:       order.Cost,
 		Comments:   order.Comments,
@@ -135,6 +136,7 @@ func (d *DefaultService) GetOrderByID(ctx context.Context, orderID int) (*Respon
 	order := &ResponseOrder{
 		ID:         dbOrder.ID,
 		Status:     dbOrder.Status,
+		PrintType:  dbOrder.PrintType,
 		ClientName: dbOrder.ClientName,
 		Cost:       dbOrder.Cost,
 		Comments:   dbOrder.Comments,
@@ -176,6 +178,7 @@ func (d *DefaultService) RestoreOrder(ctx context.Context, orderID int) error {
 func (d *DefaultService) EditOrder(ctx context.Context, orderID int, order RequestEditOrder) error {
 	dbOrder := DBEditOrder{
 		ID:               orderID,
+		PrintType:        order.PrintType,
 		ClientName:       order.ClientName,
 		Cost:             order.Cost,
 		Comments:         order.Comments,
