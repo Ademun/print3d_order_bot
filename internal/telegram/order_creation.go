@@ -65,8 +65,8 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 	fsm.Chain[*fsm.OrderData](deps.Router, "order_creation", fsm.StepAwaitingOrderType).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
 			if data == "new_order" {
-				ctx.Transition(fsm.StepAwaitingClientName, ctx.Data)
-				return ctx.SendMessage(presentation.AskClientNameMsg(), nil)
+				ctx.Transition(fsm.StepAwaitingPrintType, ctx.Data)
+				return ctx.SendMessage(presentation.AskPrintTypeMsg(), presentation.PrintTypeKbd())
 			}
 
 			ids, err := deps.OrderService.GetActiveOrdersIDs(ctx.Ctx)
@@ -116,6 +116,14 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 			default:
 				return nil
 			}
+		}).
+
+		// Print type
+		Then(fsm.StepAwaitingPrintType).
+		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			ctx.Data.PrintType = strings.ToUpper(data)
+			ctx.Transition(fsm.StepAwaitingClientName, ctx.Data)
+			return ctx.SendMessage(presentation.AskClientNameMsg(), nil)
 		}).
 
 		// Client name
@@ -302,6 +310,7 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 	}
 
 	data := orderSvc.RequestNewOrder{
+		PrintType:  ctx.Data.PrintType,
 		ClientName: ctx.Data.ClientName,
 		Cost:       ctx.Data.Cost,
 		Comments:   ctx.Data.Comments,

@@ -13,7 +13,17 @@ type OrderEditFlowDeps struct {
 }
 
 func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
-	fsm.Chain[*fsm.OrderEditData](deps.Router, "order_edit", fsm.StepAwaitingEditName).
+	fsm.Chain[*fsm.OrderEditData](deps.Router, "order_edit", fsm.StepAwaitingEditPrintType).
+		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
+			if data == "skip" {
+				ctx.Transition(fsm.StepAwaitingClientName, ctx.Data)
+				return ctx.SendMessage(presentation.AskClientNameMsg(), presentation.SkipKbd())
+			}
+			pType := strings.ToUpper(data)
+			ctx.Data.PrintType = &pType
+			return ctx.SendMessage(presentation.AskClientNameMsg(), presentation.SkipKbd())
+		}).
+		Then(fsm.StepAwaitingEditName).
 		OnText(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], text string) error {
 			ctx.Data.ClientName = &text
 			ctx.Transition(fsm.StepAwaitingEditCost, ctx.Data)
@@ -73,6 +83,7 @@ func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 
 func finalizeOrderEdit(ctx *fsm.ConversationContext[*fsm.OrderEditData], orderService order.Service) error {
 	edit := order.RequestEditOrder{
+		PrintType:        ctx.Data.PrintType,
 		ClientName:       ctx.Data.ClientName,
 		Cost:             ctx.Data.Cost,
 		Comments:         ctx.Data.Comments,

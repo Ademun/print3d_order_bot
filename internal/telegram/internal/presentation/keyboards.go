@@ -15,6 +15,15 @@ func OrderTypeKbd() *models.InlineKeyboardMarkup {
 	}
 }
 
+func PrintTypeKbd() *models.InlineKeyboardMarkup {
+	return &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{{Text: "FDM", CallbackData: "fdm"}},
+			{{Text: "SLA", CallbackData: "sla"}},
+		},
+	}
+}
+
 func SkipKbd() *models.InlineKeyboardMarkup {
 	return &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{

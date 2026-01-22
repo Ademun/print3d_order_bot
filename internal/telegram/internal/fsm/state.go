@@ -14,6 +14,7 @@ const (
 	StepAwaitingNewOrderConfirmation
 	StepAwaitingOrderSelectSliderAction
 	StepAwaitingOrderViewSliderAction
+	StepAwaitingEditPrintType
 	StepAwaitingEditName
 	StepAwaitingEditCost
 	StepAwaitingEditComments

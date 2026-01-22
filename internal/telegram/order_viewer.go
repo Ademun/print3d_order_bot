@@ -108,10 +108,12 @@ func SetupOrderViewerFlow(deps *OrderViewerDeps) {
 				editData := &fsm.OrderEditData{
 					OrderID: ctx.Data.OrdersIDs[ctx.Data.CurrentIdx],
 				}
-				ctx.Transition(fsm.StepAwaitingEditName, editData)
+				ctx.Transition(fsm.StepAwaitingEditPrintType, editData)
+				kbd := presentation.PrintTypeKbd()
+				kbd.InlineKeyboard = append(kbd.InlineKeyboard, presentation.SkipKbd().InlineKeyboard...)
 				return ctx.SendMessage(
-					presentation.AskClientNameMsg(),
-					presentation.SkipKbd(),
+					presentation.AskPrintTypeMsg(),
+					presentation.PrintTypeKbd(),
 				)
 
 			default:

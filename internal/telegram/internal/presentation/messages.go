@@ -71,6 +71,10 @@ func AddedDataToOrderMsg() string {
 	return "<b>✔️ Добавлены новые данные к заказу</b>"
 }
 
+func AskPrintTypeMsg() string {
+	return "<b>📝 Выберите тип печати</b>"
+}
+
 func AskClientNameMsg() string {
 	return "<b>👤 Введите имя клиента</b>"
 }
