@@ -64,6 +64,9 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 
 	fsm.Chain[*fsm.OrderData](deps.Router, "order_creation", fsm.StepAwaitingOrderType).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			if data == "new_order" {
 				ctx.Transition(fsm.StepAwaitingPrintType, ctx.Data)
 				return ctx.SendMessage(presentation.AskPrintTypeMsg(), presentation.PrintTypeKbd())
@@ -97,6 +100,9 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 		}).
 		Then(fsm.StepAwaitingOrderSelectSliderAction).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			switch data {
 			case "previous":
 				if ctx.Data.CurrentIdx > 0 {
@@ -121,6 +127,9 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 		// Print type
 		Then(fsm.StepAwaitingPrintType).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			ctx.Data.PrintType = strings.ToUpper(data)
 			ctx.Transition(fsm.StepAwaitingClientName, ctx.Data)
 			return ctx.SendMessage(presentation.AskClientNameMsg(), nil)
@@ -163,6 +172,9 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 			)
 		}).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			if data == "skip" {
 				ctx.Data.Comments = make([]string, 0)
 				ctx.Transition(fsm.StepAwaitingNewOrderConfirmation, ctx.Data)
@@ -177,6 +189,9 @@ func SetupOrderCreationFlow(deps *OrderCreationDeps) {
 		// New order confirmation
 		Then(fsm.StepAwaitingNewOrderConfirmation).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			if data == "no" {
 				return ctx.Complete(presentation.NewOrderCancelledMsg())
 			}
@@ -272,6 +287,7 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 	for i, f := range ctx.Data.Files {
 		filesToDownload[i] = fileSvc.RequestFile{
 			Name:     f.Name,
+			Size:     f.Size,
 			TGFileID: f.TGFileID,
 		}
 	}
@@ -288,6 +304,7 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 
 	for result := range downloaded {
 		if result.Err != nil {
+			slog.Error("failed to download file", "info", result)
 			downloadErrors[result.Result.Name] = formatDownloadError(result.Err)
 			continue
 		}
@@ -297,8 +314,6 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 			Checksum: result.Result.Checksum,
 			TgFileID: &result.Result.TGFileID,
 		})
-
-		slog.Info("res", result)
 
 		if err := ctx.EditMessageText(msgID.ID, presentation.DownloadProgressMsg(result.Result.Name, result.Index, result.Total)); err != nil {
 			return err

@@ -67,6 +67,7 @@ func ExtractMedia(message *models.Message) []model.File {
 		}
 		result = append(result, model.File{
 			Name:     fileName,
+			Size:     uint64(message.Audio.FileSize),
 			TGFileID: message.Audio.FileID,
 		})
 	}
@@ -74,6 +75,7 @@ func ExtractMedia(message *models.Message) []model.File {
 	if message.Photo != nil && len(message.Photo) > 0 {
 		result = append(result, model.File{
 			Name:     fmt.Sprintf("photo_%s_%d.jpg", dateStr, message.ID),
+			Size:     uint64(message.Photo[len(message.Photo)-1].FileSize),
 			TGFileID: message.Photo[len(message.Photo)-1].FileID,
 		})
 	}
@@ -86,6 +88,7 @@ func ExtractMedia(message *models.Message) []model.File {
 		}
 		result = append(result, model.File{
 			Name:     fileName,
+			Size:     uint64(message.Document.FileSize),
 			TGFileID: message.Document.FileID,
 		})
 	}
@@ -98,6 +101,7 @@ func ExtractMedia(message *models.Message) []model.File {
 		}
 		result = append(result, model.File{
 			Name:     fileName,
+			Size:     uint64(message.Video.FileSize),
 			TGFileID: message.Video.FileID,
 		})
 	}
@@ -105,6 +109,7 @@ func ExtractMedia(message *models.Message) []model.File {
 	if message.VideoNote != nil {
 		result = append(result, model.File{
 			Name:     fmt.Sprintf("video_note_%s_%d.mp4", dateStr, message.ID),
+			Size:     uint64(message.VideoNote.FileSize),
 			TGFileID: message.VideoNote.FileID,
 		})
 	}
@@ -113,6 +118,7 @@ func ExtractMedia(message *models.Message) []model.File {
 		ext := getExtFromMIME(message.Voice.MimeType)
 		result = append(result, model.File{
 			Name:     fmt.Sprintf("voice_%s_%d%s", dateStr, message.ID, ext),
+			Size:     uint64(message.Voice.FileSize),
 			TGFileID: message.Voice.FileID,
 		})
 	}

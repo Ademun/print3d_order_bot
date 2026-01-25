@@ -76,6 +76,9 @@ type OrderViewerDeps struct {
 func SetupOrderViewerFlow(deps *OrderViewerDeps) {
 	fsm.Chain[*fsm.OrderSliderData](deps.Router, "order_viewer", fsm.StepAwaitingOrderViewSliderAction).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderSliderData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			switch data {
 			case "previous":
 				if ctx.Data.CurrentIdx > 0 {

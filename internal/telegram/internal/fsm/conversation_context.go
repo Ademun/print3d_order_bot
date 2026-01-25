@@ -18,11 +18,6 @@ type ConversationContext[T StateData] struct {
 }
 
 func (c *ConversationContext[T]) SendMessage(text string, markup models.ReplyMarkup) error {
-	if c.Update.CallbackQuery != nil {
-		if err := c.AnswerCallbackQuery("", false); err != nil {
-			return err
-		}
-	}
 	params := &bot.SendMessageParams{
 		ChatID:      c.UserID,
 		Text:        text,
@@ -34,10 +29,6 @@ func (c *ConversationContext[T]) SendMessage(text string, markup models.ReplyMar
 }
 
 func (c *ConversationContext[T]) AnswerCallbackQuery(text string, showAlert bool) error {
-	if c.Update.CallbackQuery == nil {
-		return nil
-	}
-
 	_, err := c.Bot.AnswerCallbackQuery(c.Ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: c.Update.CallbackQuery.ID,
 		Text:            text,
@@ -47,12 +38,6 @@ func (c *ConversationContext[T]) AnswerCallbackQuery(text string, showAlert bool
 }
 
 func (c *ConversationContext[T]) EditMessageText(messageID int, text string) error {
-	if c.Update.CallbackQuery != nil {
-		if err := c.AnswerCallbackQuery("", false); err != nil {
-			return err
-		}
-	}
-
 	_, err := c.Bot.EditMessageText(c.Ctx, &bot.EditMessageTextParams{
 		ChatID:    c.UserID,
 		MessageID: messageID,
@@ -63,12 +48,6 @@ func (c *ConversationContext[T]) EditMessageText(messageID int, text string) err
 }
 
 func (c *ConversationContext[T]) EditMessageReplyMarkup(messageID int, markup models.ReplyMarkup) error {
-	if c.Update.CallbackQuery != nil {
-		if err := c.AnswerCallbackQuery("", false); err != nil {
-			return err
-		}
-	}
-
 	_, err := c.Bot.EditMessageReplyMarkup(c.Ctx, &bot.EditMessageReplyMarkupParams{
 		ChatID:      c.UserID,
 		MessageID:   messageID,

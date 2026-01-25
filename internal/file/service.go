@@ -46,7 +46,6 @@ func (d *DefaultService) DownloadAndSave(ctx context.Context, folderPath string,
 	wg := sync.WaitGroup{}
 	counter := atomic.NewInt32(0)
 	result := make(chan DownloadResult)
-	// TODO: research optimal value and make it configurable
 	sem := make(chan struct{}, 5)
 
 	d.wg.Add(1)
@@ -93,6 +92,7 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 	} else {
 		downloadErr = d.mtprotoDownloader.DownloadFile(ctx, file.TGFileID, dst)
 	}
+
 	if downloadErr != nil {
 		if err := os.Remove(filePath); err != nil {
 			result <- DownloadResult{

@@ -15,6 +15,9 @@ type OrderEditFlowDeps struct {
 func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 	fsm.Chain[*fsm.OrderEditData](deps.Router, "order_edit", fsm.StepAwaitingEditPrintType).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			if data == "skip" {
 				ctx.Transition(fsm.StepAwaitingClientName, ctx.Data)
 				return ctx.SendMessage(presentation.AskClientNameMsg(), presentation.SkipKbd())
@@ -69,6 +72,9 @@ func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 			)
 		}).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			if data == "skip" {
 				return finalizeOrderEdit(ctx, deps.OrderService)
 			}
@@ -76,6 +82,9 @@ func SetupOrderEditFlow(deps *OrderEditFlowDeps) {
 		}).
 		Then(fsm.StepAwaitingEditOverrideComments).
 		OnCallback(func(ctx *fsm.ConversationContext[*fsm.OrderEditData], data string) error {
+			if err := ctx.AnswerCallbackQuery("", false); err != nil {
+				return err
+			}
 			override := data == "yes"
 			ctx.Data.OverrideComments = &override
 			return finalizeOrderEdit(ctx, deps.OrderService)
