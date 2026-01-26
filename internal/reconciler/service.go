@@ -139,7 +139,6 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 
 	var removedFiles []string
 	var newFiles []orderSvc.File
-	var updatedFiles []orderSvc.File
 
 	filesMap := make(map[string]fileSvc.ReadResult)
 
@@ -151,26 +150,16 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 
 		filesMap[file.Name] = file
 
-		orderFile, ok := orderFilesMap[file.Name]
+		_, ok := orderFilesMap[file.Name]
 		if !ok {
 			newFiles = append(newFiles, orderSvc.File{
-				Name:     file.Name,
-				Checksum: file.Checksum,
+				Name: file.Name,
 			})
-			continue
-		}
-
-		if file.Checksum != orderFile.Checksum {
-			updatedFiles = append(updatedFiles, orderSvc.File{
-				Name:     file.Name,
-				Checksum: file.Checksum,
-			})
-			delete(orderFilesMap, file.Name)
 			continue
 		}
 	}
 
-	for name, _ := range orderFilesMap {
+	for name := range orderFilesMap {
 		if _, ok := filesMap[name]; !ok {
 			removedFiles = append(removedFiles, name)
 		}
@@ -181,10 +170,6 @@ func (d *DefaultService) ReconcileOrder(ctx context.Context, orderID int) {
 	}
 
 	if err := d.orderService.AddFilesToOrder(ctx, orderID, newFiles); err != nil {
-		slog.Error(err.Error())
-	}
-
-	if err := d.orderService.UpdateOrderFiles(ctx, orderID, updatedFiles); err != nil {
 		slog.Error(err.Error())
 	}
 }

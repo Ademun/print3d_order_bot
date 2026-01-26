@@ -256,7 +256,6 @@ func finalizeAddToOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *Orde
 
 		orderFiles = append(orderFiles, orderSvc.File{
 			Name:     result.Result.Name,
-			Checksum: result.Result.Checksum,
 			TgFileID: &result.Result.TGFileID,
 		})
 
@@ -311,7 +310,6 @@ func finalizeNewOrder(ctx *fsm.ConversationContext[*fsm.OrderData], deps *OrderC
 
 		orderFiles = append(orderFiles, orderSvc.File{
 			Name:     result.Result.Name,
-			Checksum: result.Result.Checksum,
 			TgFileID: &result.Result.TGFileID,
 		})
 
@@ -350,8 +348,6 @@ func formatDownloadError(err error) string {
 	switch {
 	case errors.Is(err, fileSvc.ErrFileExists):
 		return "Файл уже существует"
-	case errors.Is(err, fileSvc.ErrCalculateChecksum):
-		return "Не удалось проверить целостность файла"
 	case errors.As(err, &pathPrepErr):
 		return "Не удалось подготовить путь для загрузки файла"
 	case errors.As(err, &downloadErr):

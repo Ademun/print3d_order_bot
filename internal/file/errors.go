@@ -6,9 +6,7 @@ import (
 )
 
 var (
-	ErrNoTgFileID        = errors.New("file does not have telegram file_id")
-	ErrFileExists        = errors.New("file already exists")
-	ErrCalculateChecksum = errors.New("failed to calculate checksum")
+	ErrFileExists = errors.New("file already exists")
 )
 
 type ErrDownloadFailed struct {

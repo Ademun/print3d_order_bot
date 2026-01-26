@@ -114,22 +114,9 @@ func (d *DefaultService) processFile(ctx context.Context, folderPath string, fil
 		}
 	}
 
-	checksum, err := calculateChecksum(filePath)
-	if err != nil {
-		result <- DownloadResult{
-			Result: &ResponseFile{
-				Name: file.Name,
-			},
-			Index: currentIndex,
-			Total: total,
-			Err:   ErrCalculateChecksum,
-		}
-	}
-
 	result <- DownloadResult{
 		Result: &ResponseFile{
 			Name:     file.Name,
-			Checksum: checksum,
 			TGFileID: file.TGFileID,
 		},
 		Index: currentIndex,
@@ -183,19 +170,10 @@ func (d *DefaultService) ReadFiles(folderPath string) (chan ReadResult, error) {
 					}
 				}
 
-				checksum, err := calculateChecksum(path)
-				if err != nil {
-					result <- ReadResult{
-						Name: entry.Name(),
-						Err:  ErrCalculateChecksum,
-					}
-				}
-
 				result <- ReadResult{
-					Name:     entry.Name(),
-					Body:     file,
-					Size:     uint64(fileInfo.Size()),
-					Checksum: checksum,
+					Name: entry.Name(),
+					Body: file,
+					Size: uint64(fileInfo.Size()),
 				}
 			}(entry)
 		}

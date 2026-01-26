@@ -12,7 +12,6 @@ type RequestFile struct {
 
 type ResponseFile struct {
 	Name     string
-	Checksum uint64
 	TGFileID string
 }
 
@@ -24,9 +23,8 @@ type DownloadResult struct {
 }
 
 type ReadResult struct {
-	Name     string
-	Body     io.ReadCloser
-	Size     uint64
-	Checksum uint64
-	Err      error
+	Name string
+	Body io.ReadCloser
+	Size uint64
+	Err  error
 }
